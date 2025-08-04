@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { SavedPackingList } from '@/lib/storage';
-import { getPackingListHistory, deletePackingList } from '@/lib/storage';
 import { 
   History, 
   MapPin, 
@@ -14,53 +12,100 @@ import {
   Clock
 } from 'lucide-react';
 
+interface Trip {
+  id: string;
+  name: string;
+  destination: string;
+  duration: number;
+  season: string;
+  climate: string;
+  activities: string;
+  accommodation: string;
+  groupSize: number;
+  includesChildren: boolean;
+  specialNeeds: string;
+  createdAt: string;
+  updatedAt: string;
+  items: any[];
+  progress: any[];
+}
+
 interface PackingHistoryProps {
-  onLoadList: (tripDetails: any, items: any[]) => void;
+  onLoadList: (trip: Trip) => void;
+  onDeleteTrip: (tripId: string) => Promise<void>;
   onClose: () => void;
 }
 
-export default function PackingHistory({ onLoadList, onClose }: PackingHistoryProps) {
-  const [history, setHistory] = useState<SavedPackingList[]>([]);
+export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: PackingHistoryProps) {
+  const [history, setHistory] = useState<Trip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadHistory = () => {
-      const savedHistory = getPackingListHistory();
-      setHistory(savedHistory);
-      setIsLoading(false);
+    const loadHistory = async () => {
+      try {
+        const response = await fetch('/api/trips');
+        if (response.ok) {
+          const data = await response.json();
+          setHistory(data.trips);
+        }
+      } catch (error) {
+        console.error('Error loading history:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     loadHistory();
   }, []);
 
-  const handleDelete = (id: string) => {
-    deletePackingList(id);
-    setHistory(prev => prev.filter(list => list.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      await onDeleteTrip(id);
+      setHistory(prev => prev.filter(list => list.id !== id));
+    } catch (error) {
+      console.error('Error deleting trip:', error);
+    }
   };
 
-  const handleLoad = (list: SavedPackingList) => {
-    onLoadList(list.tripDetails, list.items);
+  const handleLoad = (trip: Trip) => {
+    onLoadList(trip);
     onClose();
   };
 
-  const handleDuplicate = (list: SavedPackingList) => {
-    const newList = {
-      ...list,
-      id: Date.now().toString(36) + Math.random().toString(36).substr(2),
-      name: `${list.name} (Copy)`,
-      createdAt: new Date(),
-      lastModified: new Date(),
-    };
-    
-    // Save the duplicated list
-    const currentHistory = getPackingListHistory();
-    currentHistory.unshift(newList);
-    localStorage.setItem('pack-it-up-history', JSON.stringify(currentHistory.slice(0, 20)));
-    
-    setHistory(prev => [newList, ...prev]);
+  const handleDuplicate = async (trip: Trip) => {
+    try {
+      // Create a new trip with the same details
+      const response = await fetch('/api/trips', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tripDetails: {
+            destination: trip.destination,
+            duration: trip.duration,
+            season: trip.season,
+            climate: trip.climate,
+            activities: JSON.parse(trip.activities),
+            accommodation: trip.accommodation,
+            groupSize: trip.groupSize,
+            includesChildren: trip.includesChildren,
+            specialNeeds: JSON.parse(trip.specialNeeds),
+          },
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setHistory(prev => [data.trip, ...prev]);
+      }
+    } catch (error) {
+      console.error('Error duplicating trip:', error);
+    }
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
     return new Intl.DateTimeFormat('en-US', {
       month: 'short',
       day: 'numeric',
@@ -110,59 +155,59 @@ export default function PackingHistory({ onLoadList, onClose }: PackingHistoryPr
             </div>
           ) : (
             <div className="space-y-4">
-              {history.map((list) => (
+              {history.map((trip) => (
                 <div
-                  key={list.id}
+                  key={trip.id}
                   className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 mb-2">{list.name}</h3>
+                      <h3 className="font-semibold text-gray-900 mb-2">{trip.name}</h3>
                       
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
                           <MapPin className="w-4 h-4" />
-                          <span>{list.tripDetails.destination}</span>
+                          <span>{trip.destination}</span>
                         </div>
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
                           <Calendar className="w-4 h-4" />
-                          <span>{list.tripDetails.duration} days</span>
+                          <span>{trip.duration} days</span>
                         </div>
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
                           <Users className="w-4 h-4" />
-                          <span>{list.tripDetails.groupSize} people</span>
+                          <span>{trip.groupSize} people</span>
                         </div>
                       </div>
 
                       <div className="flex items-center space-x-4 text-xs text-gray-500">
                         <div className="flex items-center space-x-1">
                           <Clock className="w-3 h-3" />
-                          <span>Created: {formatDate(list.createdAt)}</span>
+                          <span>Created: {formatDate(trip.createdAt)}</span>
                         </div>
                         <div className="flex items-center space-x-1">
                           <span>•</span>
-                          <span>{list.items.length} items</span>
+                          <span>{trip.items.length} items</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="flex items-center space-x-2 ml-4">
                       <button
-                        onClick={() => handleLoad(list)}
+                        onClick={() => handleLoad(trip)}
                         className="btn-primary text-sm px-3 py-1"
                         title="Load this list"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDuplicate(list)}
+                        onClick={() => handleDuplicate(trip)}
                         className="btn-secondary text-sm px-3 py-1"
                         title="Duplicate this list"
                       >
                         <Copy className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDelete(list.id)}
+                        onClick={() => handleDelete(trip.id)}
                         className="text-red-600 hover:text-red-800 text-sm px-3 py-1 transition-colors"
                         title="Delete this list"
                       >

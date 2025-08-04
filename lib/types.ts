@@ -17,6 +17,7 @@ export interface PackingItem {
   essential: boolean;
   quantity: number;
   notes?: string;
+  aiSuggested?: boolean;
 }
 
 export interface PackingList {

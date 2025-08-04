@@ -2,37 +2,82 @@
 
 import { useState } from 'react';
 import { TripDetails, PackingItem } from '@/lib/types';
-import { generatePackingList } from '@/lib/packingLogic';
-import { savePackingList } from '@/lib/storage';
 import TripForm from '@/components/TripForm';
 import PackingList from '@/components/PackingList';
 import PackingHistory from '@/components/PackingHistory';
 import { Luggage, MapPin, Users, Calendar, History } from 'lucide-react';
 
+interface Trip {
+  id: string;
+  name: string;
+  destination: string;
+  duration: number;
+  season: string;
+  climate: string;
+  activities: string;
+  accommodation: string;
+  groupSize: number;
+  includesChildren: boolean;
+  specialNeeds: string;
+  createdAt: string;
+  updatedAt: string;
+  items: PackingItem[];
+  progress: any[];
+}
+
 export default function Home() {
-  const [packingList, setPackingList] = useState<PackingItem[]>([]);
-  const [tripDetails, setTripDetails] = useState<TripDetails | null>(null);
+  const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
   const handleGenerateList = async (details: TripDetails) => {
     setIsLoading(true);
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
     
-    const items = generatePackingList(details);
-    setPackingList(items);
-    setTripDetails(details);
-    
-    // Save to history
-    savePackingList(details, items);
-    
-    setIsLoading(false);
+    try {
+      const response = await fetch('/api/trips', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tripDetails: details }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create trip');
+      }
+
+      const data = await response.json();
+      setCurrentTrip(data.trip);
+    } catch (error) {
+      console.error('Error creating trip:', error);
+      alert('Failed to create trip. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleLoadFromHistory = (tripDetails: TripDetails, items: PackingItem[]) => {
-    setPackingList(items);
-    setTripDetails(tripDetails);
+  const handleLoadFromHistory = (trip: Trip) => {
+    setCurrentTrip(trip);
+  };
+
+  const handleDeleteTrip = async (tripId: string) => {
+    try {
+      const response = await fetch(`/api/trips/${tripId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete trip');
+      }
+
+      // If we're deleting the current trip, clear it
+      if (currentTrip?.id === tripId) {
+        setCurrentTrip(null);
+      }
+    } catch (error) {
+      console.error('Error deleting trip:', error);
+      alert('Failed to delete trip. Please try again.');
+    }
   };
 
   return (
@@ -51,7 +96,7 @@ export default function Home() {
 
         {/* Main Content */}
         <div className="max-w-6xl mx-auto">
-          {packingList.length === 0 ? (
+          {!currentTrip ? (
             <div className="card max-w-4xl mx-auto">
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">
@@ -78,63 +123,57 @@ export default function Home() {
           ) : (
             <div className="space-y-8">
               {/* Trip Summary */}
-              {tripDetails && (
-                <div className="card">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-2xl font-semibold text-gray-900">Your Trip</h2>
-                    <div className="flex items-center space-x-4">
-                      <button
-                        onClick={() => setShowHistory(true)}
-                        className="btn-secondary flex items-center space-x-2"
-                      >
-                        <History className="w-4 h-4" />
-                        <span>History</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          setPackingList([]);
-                          setTripDetails(null);
-                        }}
-                        className="btn-secondary"
-                      >
-                        Start Over
-                      </button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="flex items-center space-x-2">
-                      <MapPin className="w-5 h-5 text-primary-600" />
-                      <span className="text-gray-700">
-                        <strong>Destination:</strong> {tripDetails.destination}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="w-5 h-5 text-primary-600" />
-                      <span className="text-gray-700">
-                        <strong>Duration:</strong> {tripDetails.duration} days
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Users className="w-5 h-5 text-primary-600" />
-                      <span className="text-gray-700">
-                        <strong>Group Size:</strong> {tripDetails.groupSize} people
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Luggage className="w-5 h-5 text-primary-600" />
-                      <span className="text-gray-700">
-                        <strong>Climate:</strong> {tripDetails.climate}
-                      </span>
-                    </div>
+              <div className="card">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-semibold text-gray-900">Your Trip</h2>
+                  <div className="flex items-center space-x-4">
+                    <button
+                      onClick={() => setShowHistory(true)}
+                      className="btn-secondary flex items-center space-x-2"
+                    >
+                      <History className="w-4 h-4" />
+                      <span>History</span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentTrip(null)}
+                      className="btn-secondary"
+                    >
+                      Start Over
+                    </button>
                   </div>
                 </div>
-              )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <MapPin className="w-5 h-5 text-primary-600" />
+                    <span className="text-gray-700">
+                      <strong>Destination:</strong> {currentTrip.destination}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="w-5 h-5 text-primary-600" />
+                    <span className="text-gray-700">
+                      <strong>Duration:</strong> {currentTrip.duration} days
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Users className="w-5 h-5 text-primary-600" />
+                    <span className="text-gray-700">
+                      <strong>Group Size:</strong> {currentTrip.groupSize} people
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Luggage className="w-5 h-5 text-primary-600" />
+                    <span className="text-gray-700">
+                      <strong>Climate:</strong> {currentTrip.climate}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
               {/* Packing List */}
               <PackingList 
-                items={packingList} 
-                tripDetails={tripDetails}
-                listId={tripDetails ? `${tripDetails.destination}-${tripDetails.duration}` : undefined}
+                items={currentTrip.items} 
+                tripId={currentTrip.id}
               />
             </div>
           )}
@@ -145,6 +184,7 @@ export default function Home() {
       {showHistory && (
         <PackingHistory
           onLoadList={handleLoadFromHistory}
+          onDeleteTrip={handleDeleteTrip}
           onClose={() => setShowHistory(false)}
         />
       )}

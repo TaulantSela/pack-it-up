@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { PackingItem } from '@/lib/types';
-import { updatePackingList } from '@/lib/storage';
 import { 
   CheckCircle, 
   Circle, 
@@ -18,8 +17,7 @@ import {
 
 interface PackingListProps {
   items: PackingItem[];
-  tripDetails?: any;
-  listId?: string;
+  tripId: string;
 }
 
 const categoryIcons = {
@@ -40,32 +38,67 @@ const categoryColors = {
   other: 'bg-gray-100 text-gray-800',
 };
 
-export default function PackingList({ items, tripDetails, listId }: PackingListProps) {
+export default function PackingList({ items, tripId }: PackingListProps) {
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const [showOnlyEssential, setShowOnlyEssential] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Load checked items from localStorage if listId is provided
+  // Load progress from database
   useEffect(() => {
-    if (listId) {
-      const savedChecked = localStorage.getItem(`checked-items-${listId}`);
-      if (savedChecked) {
-        setCheckedItems(new Set(JSON.parse(savedChecked)));
+    const loadProgress = async () => {
+      console.log('Loading progress for trip:', tripId);
+      try {
+        const response = await fetch(`/api/trips/${tripId}/progress`);
+        if (response.ok) {
+          const data = await response.json();
+          const checkedSet = new Set<string>(
+            data.progress
+              .filter((p: any) => p.checked)
+              .map((p: any) => p.itemId)
+          );
+          setCheckedItems(checkedSet);
+        }
+      } catch (error) {
+        console.error('Error loading progress:', error);
       }
-    }
-  }, [listId]);
+    };
 
-  const toggleItem = (itemId: string) => {
+    if (tripId) {
+      loadProgress();
+    }
+  }, [tripId]);
+
+  const toggleItem = async (itemId: string) => {
     const newChecked = new Set(checkedItems);
-    if (newChecked.has(itemId)) {
+    const isChecked = newChecked.has(itemId);
+    
+    if (isChecked) {
       newChecked.delete(itemId);
     } else {
       newChecked.add(itemId);
     }
+    
     setCheckedItems(newChecked);
 
-    // Save to localStorage if listId is provided
-    if (listId) {
-      localStorage.setItem(`checked-items-${listId}`, JSON.stringify(Array.from(newChecked)));
+    // Save to database
+    try {
+      setIsLoading(true);
+      await fetch(`/api/trips/${tripId}/progress`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          itemId,
+          checked: !isChecked,
+        }),
+      });
+    } catch (error) {
+      console.error('Error updating progress:', error);
+      // Revert the UI change if the API call failed
+      setCheckedItems(checkedItems);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -178,7 +211,8 @@ export default function PackingList({ items, tripDetails, listId }: PackingListP
                     >
                       <button
                         onClick={() => toggleItem(item.id)}
-                        className="flex-shrink-0"
+                        disabled={isLoading}
+                        className="flex-shrink-0 disabled:opacity-50"
                       >
                         {isChecked ? (
                           <CheckCircle className="w-5 h-5 text-green-600" />
@@ -194,6 +228,11 @@ export default function PackingList({ items, tripDetails, listId }: PackingListP
                           </span>
                           {item.essential && (
                             <Star className="w-4 h-4 text-yellow-500" />
+                          )}
+                          {item.aiSuggested && (
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                              AI
+                            </span>
                           )}
                         </div>
                         {item.notes && (
