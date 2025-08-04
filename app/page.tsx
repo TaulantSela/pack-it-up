@@ -3,14 +3,17 @@
 import { useState } from 'react';
 import { TripDetails, PackingItem } from '@/lib/types';
 import { generatePackingList } from '@/lib/packingLogic';
+import { savePackingList } from '@/lib/storage';
 import TripForm from '@/components/TripForm';
 import PackingList from '@/components/PackingList';
-import { Luggage, MapPin, Users, Calendar } from 'lucide-react';
+import PackingHistory from '@/components/PackingHistory';
+import { Luggage, MapPin, Users, Calendar, History } from 'lucide-react';
 
 export default function Home() {
   const [packingList, setPackingList] = useState<PackingItem[]>([]);
   const [tripDetails, setTripDetails] = useState<TripDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const handleGenerateList = async (details: TripDetails) => {
     setIsLoading(true);
@@ -20,7 +23,16 @@ export default function Home() {
     const items = generatePackingList(details);
     setPackingList(items);
     setTripDetails(details);
+    
+    // Save to history
+    savePackingList(details, items);
+    
     setIsLoading(false);
+  };
+
+  const handleLoadFromHistory = (tripDetails: TripDetails, items: PackingItem[]) => {
+    setPackingList(items);
+    setTripDetails(tripDetails);
   };
 
   return (
@@ -49,6 +61,18 @@ export default function Home() {
                   Fill out the form below to get your personalized packing list
                 </p>
               </div>
+              
+              {/* History Button */}
+              <div className="text-center mb-6">
+                <button
+                  onClick={() => setShowHistory(true)}
+                  className="btn-secondary flex items-center space-x-2 mx-auto"
+                >
+                  <History className="w-4 h-4" />
+                  <span>View Previous Lists</span>
+                </button>
+              </div>
+              
               <TripForm onSubmit={handleGenerateList} isLoading={isLoading} />
             </div>
           ) : (
@@ -58,15 +82,24 @@ export default function Home() {
                 <div className="card">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-2xl font-semibold text-gray-900">Your Trip</h2>
-                    <button
-                      onClick={() => {
-                        setPackingList([]);
-                        setTripDetails(null);
-                      }}
-                      className="btn-secondary"
-                    >
-                      Start Over
-                    </button>
+                    <div className="flex items-center space-x-4">
+                      <button
+                        onClick={() => setShowHistory(true)}
+                        className="btn-secondary flex items-center space-x-2"
+                      >
+                        <History className="w-4 h-4" />
+                        <span>History</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPackingList([]);
+                          setTripDetails(null);
+                        }}
+                        className="btn-secondary"
+                      >
+                        Start Over
+                      </button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="flex items-center space-x-2">
@@ -98,11 +131,23 @@ export default function Home() {
               )}
 
               {/* Packing List */}
-              <PackingList items={packingList} />
+              <PackingList 
+                items={packingList} 
+                tripDetails={tripDetails}
+                listId={tripDetails ? `${tripDetails.destination}-${tripDetails.duration}` : undefined}
+              />
             </div>
           )}
         </div>
       </div>
+
+      {/* History Modal */}
+      {showHistory && (
+        <PackingHistory
+          onLoadList={handleLoadFromHistory}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
     </div>
   );
 } 

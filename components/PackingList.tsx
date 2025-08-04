@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PackingItem } from '@/lib/types';
+import { updatePackingList } from '@/lib/storage';
 import { 
   CheckCircle, 
   Circle, 
@@ -17,6 +18,8 @@ import {
 
 interface PackingListProps {
   items: PackingItem[];
+  tripDetails?: any;
+  listId?: string;
 }
 
 const categoryIcons = {
@@ -37,9 +40,19 @@ const categoryColors = {
   other: 'bg-gray-100 text-gray-800',
 };
 
-export default function PackingList({ items }: PackingListProps) {
+export default function PackingList({ items, tripDetails, listId }: PackingListProps) {
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const [showOnlyEssential, setShowOnlyEssential] = useState(false);
+
+  // Load checked items from localStorage if listId is provided
+  useEffect(() => {
+    if (listId) {
+      const savedChecked = localStorage.getItem(`checked-items-${listId}`);
+      if (savedChecked) {
+        setCheckedItems(new Set(JSON.parse(savedChecked)));
+      }
+    }
+  }, [listId]);
 
   const toggleItem = (itemId: string) => {
     const newChecked = new Set(checkedItems);
@@ -49,6 +62,11 @@ export default function PackingList({ items }: PackingListProps) {
       newChecked.add(itemId);
     }
     setCheckedItems(newChecked);
+
+    // Save to localStorage if listId is provided
+    if (listId) {
+      localStorage.setItem(`checked-items-${listId}`, JSON.stringify(Array.from(newChecked)));
+    }
   };
 
   const filteredItems = showOnlyEssential 
@@ -175,7 +193,7 @@ export default function PackingList({ items }: PackingListProps) {
                             {item.name}
                           </span>
                           {item.essential && (
-                            <Star className="w-4 h-4 text-yellow-500" title="Essential item" />
+                            <Star className="w-4 h-4 text-yellow-500" />
                           )}
                         </div>
                         {item.notes && (
