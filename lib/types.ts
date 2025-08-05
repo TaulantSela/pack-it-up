@@ -25,4 +25,4 @@ export interface PackingList {
   tripDetails: TripDetails;
   items: PackingItem[];
   createdAt: Date;
-} 
+}

@@ -1,12 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { itemId, checked } = body;
 
@@ -34,19 +31,13 @@ export async function POST(
     });
   } catch (error) {
     console.error('Error updating progress:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to update progress' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Failed to update progress' }, { status: 500 });
   }
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const progress = await prisma.packingProgress.findMany({
       where: { tripId: id },
     });
@@ -57,9 +48,6 @@ export async function GET(
     });
   } catch (error) {
     console.error('Error fetching progress:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch progress' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Failed to fetch progress' }, { status: 500 });
   }
 }

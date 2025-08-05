@@ -1,4 +1,4 @@
-import { TripDetails, PackingItem } from './types';
+import { PackingItem, TripDetails } from './types';
 
 const baseItems: PackingItem[] = [
   // Clothing
@@ -58,7 +58,7 @@ const baseItems: PackingItem[] = [
 ];
 
 const activityItems: Record<string, PackingItem[]> = {
-  'hiking': [
+  hiking: [
     { id: 'h1', name: 'Hiking Boots', category: 'clothing', essential: true, quantity: 1 },
     { id: 'h2', name: 'Hiking Socks', category: 'clothing', essential: true, quantity: 2 },
     { id: 'h3', name: 'Hiking Pants', category: 'clothing', essential: true, quantity: 1 },
@@ -67,14 +67,14 @@ const activityItems: Record<string, PackingItem[]> = {
     { id: 'h6', name: 'Trail Snacks', category: 'other', essential: true, quantity: 1 },
     { id: 'h7', name: 'Map/Compass', category: 'accessories', essential: true, quantity: 1 },
   ],
-  'beach': [
+  beach: [
     { id: 'b1', name: 'Swimsuit', category: 'clothing', essential: true, quantity: 1 },
     { id: 'b2', name: 'Beach Towel', category: 'accessories', essential: true, quantity: 1 },
     { id: 'b3', name: 'Beach Umbrella', category: 'accessories', essential: false, quantity: 1 },
     { id: 'b4', name: 'Beach Bag', category: 'accessories', essential: true, quantity: 1 },
     { id: 'b5', name: 'Beach Games', category: 'accessories', essential: false, quantity: 1 },
   ],
-  'skiing': [
+  skiing: [
     { id: 's1', name: 'Ski Jacket', category: 'clothing', essential: true, quantity: 1 },
     { id: 's2', name: 'Ski Pants', category: 'clothing', essential: true, quantity: 1 },
     { id: 's3', name: 'Thermal Underwear', category: 'clothing', essential: true, quantity: 2 },
@@ -83,7 +83,7 @@ const activityItems: Record<string, PackingItem[]> = {
     { id: 's6', name: 'Ski Helmet', category: 'accessories', essential: true, quantity: 1 },
     { id: 's7', name: 'Ski Socks', category: 'clothing', essential: true, quantity: 2 },
   ],
-  'business': [
+  business: [
     { id: 'bus1', name: 'Business Suit', category: 'clothing', essential: true, quantity: 1 },
     { id: 'bus2', name: 'Dress Shirts', category: 'clothing', essential: true, quantity: 2 },
     { id: 'bus3', name: 'Dress Shoes', category: 'clothing', essential: true, quantity: 1 },
@@ -91,7 +91,7 @@ const activityItems: Record<string, PackingItem[]> = {
     { id: 'bus5', name: 'Laptop', category: 'electronics', essential: true, quantity: 1 },
     { id: 'bus6', name: 'Business Cards', category: 'documents', essential: true, quantity: 1 },
   ],
-  'camping': [
+  camping: [
     { id: 'c1', name: 'Tent', category: 'other', essential: true, quantity: 1 },
     { id: 'c2', name: 'Sleeping Bag', category: 'other', essential: true, quantity: 1 },
     { id: 'c3', name: 'Sleeping Pad', category: 'other', essential: true, quantity: 1 },
@@ -108,13 +108,13 @@ export function generatePackingList(tripDetails: TripDetails): PackingItem[] {
   items.push(...baseItems);
 
   // Adjust quantities based on duration
-  items = items.map(item => ({
+  items = items.map((item) => ({
     ...item,
-    quantity: calculateQuantity(item, tripDetails.duration)
+    quantity: calculateQuantity(item, tripDetails.duration),
   }));
 
   // Add activity-specific items
-  tripDetails.activities.forEach(activity => {
+  tripDetails.activities.forEach((activity) => {
     const activityLower = activity.toLowerCase();
     if (activityItems[activityLower]) {
       items.push(...activityItems[activityLower]);
@@ -133,14 +133,14 @@ export function generatePackingList(tripDetails: TripDetails): PackingItem[] {
   }
 
   // Add special needs items
-  tripDetails.specialNeeds.forEach(need => {
+  tripDetails.specialNeeds.forEach((need) => {
     const specialItems = getSpecialNeedsItems(need);
     items.push(...specialItems);
   });
 
   // Remove duplicates and merge quantities
   const uniqueItems = new Map<string, PackingItem>();
-  items.forEach(item => {
+  items.forEach((item) => {
     if (uniqueItems.has(item.name)) {
       const existing = uniqueItems.get(item.name)!;
       existing.quantity += item.quantity;
@@ -164,7 +164,7 @@ function calculateQuantity(item: PackingItem, duration: number): number {
 
 function getClimateItems(climate: string, season: string): PackingItem[] {
   const items: PackingItem[] = [];
-  
+
   if (climate === 'tropical') {
     items.push(
       { id: 'trop1', name: 'Lightweight Clothing', category: 'clothing', essential: true, quantity: 1 },
@@ -193,7 +193,7 @@ function getClimateItems(climate: string, season: string): PackingItem[] {
 
 function getAccommodationItems(accommodation: string): PackingItem[] {
   const items: PackingItem[] = [];
-  
+
   if (accommodation === 'camping') {
     items.push(
       { id: 'camp1', name: 'Tent', category: 'other', essential: true, quantity: 1 },
@@ -215,29 +215,29 @@ function getChildrenItems(): PackingItem[] {
   return [
     { id: 'child1', name: 'Diapers (if applicable)', category: 'toiletries', essential: true, quantity: 1 },
     { id: 'child2', name: 'Baby Wipes', category: 'toiletries', essential: true, quantity: 1 },
-    { id: 'child3', name: 'Children\'s Medications', category: 'toiletries', essential: true, quantity: 1 },
-    { id: 'child4', name: 'Children\'s Entertainment', category: 'accessories', essential: true, quantity: 1 },
-    { id: 'child5', name: 'Children\'s Snacks', category: 'other', essential: true, quantity: 1 },
+    { id: 'child3', name: "Children's Medications", category: 'toiletries', essential: true, quantity: 1 },
+    { id: 'child4', name: "Children's Entertainment", category: 'accessories', essential: true, quantity: 1 },
+    { id: 'child5', name: "Children's Snacks", category: 'other', essential: true, quantity: 1 },
   ];
 }
 
 function getSpecialNeedsItems(need: string): PackingItem[] {
   const items: PackingItem[] = [];
-  
+
   if (need.toLowerCase().includes('medical')) {
     items.push(
       { id: 'med1', name: 'Prescription Medications', category: 'toiletries', essential: true, quantity: 1 },
       { id: 'med2', name: 'Medical Documentation', category: 'documents', essential: true, quantity: 1 },
     );
   }
-  
+
   if (need.toLowerCase().includes('dietary')) {
     items.push(
       { id: 'diet1', name: 'Special Dietary Snacks', category: 'other', essential: true, quantity: 1 },
       { id: 'diet2', name: 'Dietary Restrictions Card', category: 'documents', essential: true, quantity: 1 },
     );
   }
-  
+
   if (need.toLowerCase().includes('accessibility')) {
     items.push(
       { id: 'acc1', name: 'Mobility Aids', category: 'accessories', essential: true, quantity: 1 },
@@ -246,4 +246,4 @@ function getSpecialNeedsItems(need: string): PackingItem[] {
   }
 
   return items;
-} 
+}

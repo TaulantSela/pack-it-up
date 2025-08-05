@@ -35,6 +35,7 @@ A modern, intelligent packing list app built with Next.js that generates persona
 ## Smart Features
 
 ### Activity-Based Recommendations
+
 - **Hiking**: Hiking boots, trail snacks, map/compass
 - **Beach**: Swimsuit, beach towel, sunscreen
 - **Skiing**: Ski gear, thermal underwear, goggles
@@ -42,34 +43,40 @@ A modern, intelligent packing list app built with Next.js that generates persona
 - **Camping**: Tent, sleeping bag, camping stove
 
 ### Climate-Specific Items
+
 - **Tropical**: Lightweight clothing, sunscreen, insect repellent
 - **Cold**: Thermal underwear, winter hat, gloves
 - **Desert**: Long-sleeved shirts, lip balm with SPF
 
 ### Duration-Based Quantities
+
 - Clothing quantities adjust based on trip length
 - Toiletries quantities scale with duration
 
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
+
+- Node.js 18+
 - npm or yarn
 
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd pack-it-up-v2
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Run the development server:
+
 ```bash
 npm run dev
 ```
@@ -113,12 +120,15 @@ pack-it-up-v2/
 ## Customization
 
 ### Adding New Activities
+
 Edit `lib/packingLogic.ts` and add new activity items to the `activityItems` object.
 
 ### Modifying Base Items
+
 Update the `baseItems` array in `lib/packingLogic.ts` to add or remove default items.
 
 ### Styling Changes
+
 Modify `app/globals.css` and `tailwind.config.js` to customize the appearance.
 
 ## Contributing
@@ -139,4 +149,4 @@ If you have any questions or need help, please open an issue on GitHub.
 
 ---
 
-**Happy Packing! 🧳✈️** 
+**Happy Packing! 🧳✈️**

@@ -1,10 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const trip = await prisma.trip.findUnique({
@@ -16,10 +13,7 @@ export async function GET(
     });
 
     if (!trip) {
-      return NextResponse.json(
-        { success: false, error: 'Trip not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Trip not found' }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -28,17 +22,11 @@ export async function GET(
     });
   } catch (error) {
     console.error('Error fetching trip:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch trip' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Failed to fetch trip' }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     await prisma.trip.delete({
@@ -50,9 +38,6 @@ export async function DELETE(
     });
   } catch (error) {
     console.error('Error deleting trip:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to delete trip' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Failed to delete trip' }, { status: 500 });
   }
-} 
+}

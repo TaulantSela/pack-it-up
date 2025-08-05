@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
 import { generateAIPackingSuggestions } from '@/lib/ai';
+import { prisma } from '@/lib/db';
 import { TripDetails } from '@/lib/types';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
         includesChildren: tripDetails.includesChildren,
         specialNeeds: JSON.stringify(tripDetails.specialNeeds),
         items: {
-          create: aiSuggestions.map(item => ({
+          create: aiSuggestions.map((item) => ({
             name: item.name,
             category: item.category,
             essential: item.essential,
@@ -46,15 +46,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error creating trip:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to create trip' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Failed to create trip' }, { status: 500 });
   }
 }
 
 export async function GET() {
-    console.log('GET request received');
+  console.log('GET request received');
   try {
     const trips = await prisma.trip.findMany({
       include: {
@@ -73,9 +70,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Error fetching trips:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch trips' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Failed to fetch trips' }, { status: 500 });
   }
-} 
+}

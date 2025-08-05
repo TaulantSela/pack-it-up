@@ -1,16 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { 
-  History, 
-  MapPin, 
-  Calendar, 
-  Users, 
-  Trash2, 
-  Eye, 
-  Copy,
-  Clock
-} from 'lucide-react';
+import { Calendar, Clock, Copy, Eye, History, MapPin, Trash2, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface Trip {
   id: string;
@@ -61,7 +52,7 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
   const handleDelete = async (id: string) => {
     try {
       await onDeleteTrip(id);
-      setHistory(prev => prev.filter(list => list.id !== id));
+      setHistory((prev) => prev.filter((list) => list.id !== id));
     } catch (error) {
       console.error('Error deleting trip:', error);
     }
@@ -97,7 +88,7 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
 
       if (response.ok) {
         const data = await response.json();
-        setHistory(prev => [data.trip, ...prev]);
+        setHistory((prev) => [data.trip, ...prev]);
       }
     } catch (error) {
       console.error('Error duplicating trip:', error);
@@ -117,71 +108,66 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="text-gray-600 mt-4">Loading history...</p>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="rounded-lg bg-white p-8">
+          <div className="border-primary-600 mx-auto h-8 w-8 animate-spin rounded-full border-b-2"></div>
+          <p className="mt-4 text-gray-600">Loading history...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="mx-4 max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-xl">
+        <div className="border-b border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <History className="w-6 h-6 text-primary-600" />
+              <History className="text-primary-600 h-6 w-6" />
               <h2 className="text-2xl font-semibold text-gray-900">Packing List History</h2>
             </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
+            <button onClick={onClose} className="text-gray-400 transition-colors hover:text-gray-600">
               ✕
             </button>
           </div>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+        <div className="max-h-[calc(90vh-120px)] overflow-y-auto p-6">
           {history.length === 0 ? (
-            <div className="text-center py-12">
-              <History className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No History Yet</h3>
-              <p className="text-gray-600">
-                Your packing lists will appear here once you create them.
-              </p>
+            <div className="py-12 text-center">
+              <History className="mx-auto mb-4 h-16 w-16 text-gray-300" />
+              <h3 className="mb-2 text-lg font-medium text-gray-900">No History Yet</h3>
+              <p className="text-gray-600">Your packing lists will appear here once you create them.</p>
             </div>
           ) : (
             <div className="space-y-4">
               {history.map((trip) => (
                 <div
                   key={trip.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
+                  className="rounded-lg border border-gray-200 p-4 transition-colors hover:border-gray-300"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 mb-2">{trip.name}</h3>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                      <h3 className="mb-2 font-semibold text-gray-900">{trip.name}</h3>
+
+                      <div className="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <MapPin className="w-4 h-4" />
+                          <MapPin className="h-4 w-4" />
                           <span>{trip.destination}</span>
                         </div>
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <Calendar className="w-4 h-4" />
+                          <Calendar className="h-4 w-4" />
                           <span>{trip.duration} days</span>
                         </div>
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <Users className="w-4 h-4" />
+                          <Users className="h-4 w-4" />
                           <span>{trip.groupSize} people</span>
                         </div>
                       </div>
 
                       <div className="flex items-center space-x-4 text-xs text-gray-500">
                         <div className="flex items-center space-x-1">
-                          <Clock className="w-3 h-3" />
+                          <Clock className="h-3 w-3" />
                           <span>Created: {formatDate(trip.createdAt)}</span>
                         </div>
                         <div className="flex items-center space-x-1">
@@ -191,27 +177,27 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2 ml-4">
+                    <div className="ml-4 flex items-center space-x-2">
                       <button
                         onClick={() => handleLoad(trip)}
-                        className="btn-primary text-sm px-3 py-1"
+                        className="btn-primary px-3 py-1 text-sm"
                         title="Load this list"
                       >
-                        <Eye className="w-4 h-4" />
+                        <Eye className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDuplicate(trip)}
-                        className="btn-secondary text-sm px-3 py-1"
+                        className="btn-secondary px-3 py-1 text-sm"
                         title="Duplicate this list"
                       >
-                        <Copy className="w-4 h-4" />
+                        <Copy className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(trip.id)}
-                        className="text-red-600 hover:text-red-800 text-sm px-3 py-1 transition-colors"
+                        className="px-3 py-1 text-sm text-red-600 transition-colors hover:text-red-800"
                         title="Delete this list"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
@@ -223,4 +209,4 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
       </div>
     </div>
   );
-} 
+}

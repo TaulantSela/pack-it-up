@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { TripDetails, PackingItem } from '@/lib/types';
-import TripForm from '@/components/TripForm';
-import PackingList from '@/components/PackingList';
 import PackingHistory from '@/components/PackingHistory';
-import { Luggage, MapPin, Users, Calendar, History } from 'lucide-react';
+import PackingList from '@/components/PackingList';
+import TripForm from '@/components/TripForm';
+import { PackingItem, TripDetails } from '@/lib/types';
+import { Calendar, History, Luggage, MapPin, Users } from 'lucide-react';
+import { useState } from 'react';
 
 interface Trip {
   id: string;
@@ -32,7 +32,7 @@ export default function Home() {
 
   const handleGenerateList = async (details: TripDetails) => {
     setIsLoading(true);
-    
+
     try {
       const response = await fetch('/api/trips', {
         method: 'POST',
@@ -84,85 +84,75 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center mb-4">
-            <Luggage className="w-12 h-12 text-primary-600 mr-3" />
+        <div className="mb-12 text-center">
+          <div className="mb-4 flex items-center justify-center">
+            <Luggage className="text-primary-600 mr-3 h-12 w-12" />
             <h1 className="text-4xl font-bold text-gray-900">Pack It Up</h1>
           </div>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="mx-auto max-w-2xl text-xl text-gray-600">
             Generate personalized packing lists based on your destination, activities, and travel preferences
           </p>
         </div>
 
         {/* Main Content */}
-        <div className="max-w-6xl mx-auto">
+        <div className="mx-auto max-w-6xl">
           {!currentTrip ? (
-            <div className="card max-w-4xl mx-auto">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-                  Tell us about your trip
-                </h2>
-                <p className="text-gray-600">
-                  Fill out the form below to get your personalized packing list
-                </p>
+            <div className="card mx-auto max-w-4xl">
+              <div className="mb-8 text-center">
+                <h2 className="mb-4 text-2xl font-semibold text-gray-900">Tell us about your trip</h2>
+                <p className="text-gray-600">Fill out the form below to get your personalized packing list</p>
               </div>
-              
+
               {/* History Button */}
-              <div className="text-center mb-6">
+              <div className="mb-6 text-center">
                 <button
                   onClick={() => setShowHistory(true)}
-                  className="btn-secondary flex items-center space-x-2 mx-auto"
+                  className="btn-secondary mx-auto flex items-center space-x-2"
                 >
-                  <History className="w-4 h-4" />
+                  <History className="h-4 w-4" />
                   <span>View Previous Lists</span>
                 </button>
               </div>
-              
+
               <TripForm onSubmit={handleGenerateList} isLoading={isLoading} />
             </div>
           ) : (
             <div className="space-y-8">
               {/* Trip Summary */}
               <div className="card">
-                <div className="flex items-center justify-between mb-4">
+                <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-2xl font-semibold text-gray-900">Your Trip</h2>
                   <div className="flex items-center space-x-4">
-                    <button
-                      onClick={() => setShowHistory(true)}
-                      className="btn-secondary flex items-center space-x-2"
-                    >
-                      <History className="w-4 h-4" />
+                    <button onClick={() => setShowHistory(true)} className="btn-secondary flex items-center space-x-2">
+                      <History className="h-4 w-4" />
                       <span>History</span>
                     </button>
-                    <button
-                      onClick={() => setCurrentTrip(null)}
-                      className="btn-secondary"
-                    >
+                    <button onClick={() => setCurrentTrip(null)} className="btn-secondary">
                       Start Over
                     </button>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <div className="flex items-center space-x-2">
-                    <MapPin className="w-5 h-5 text-primary-600" />
+                    <MapPin className="text-primary-600 h-5 w-5" />
                     <span className="text-gray-700">
                       <strong>Destination:</strong> {currentTrip.destination}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Calendar className="w-5 h-5 text-primary-600" />
+                    <Calendar className="text-primary-600 h-5 w-5" />
                     <span className="text-gray-700">
                       <strong>Duration:</strong> {currentTrip.duration} days
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Users className="w-5 h-5 text-primary-600" />
+                    <Users className="text-primary-600 h-5 w-5" />
                     <span className="text-gray-700">
                       <strong>Group Size:</strong> {currentTrip.groupSize} people
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Luggage className="w-5 h-5 text-primary-600" />
+                    <Luggage className="text-primary-600 h-5 w-5" />
                     <span className="text-gray-700">
                       <strong>Climate:</strong> {currentTrip.climate}
                     </span>
@@ -171,10 +161,7 @@ export default function Home() {
               </div>
 
               {/* Packing List */}
-              <PackingList 
-                items={currentTrip.items} 
-                tripId={currentTrip.id}
-              />
+              <PackingList items={currentTrip.items} tripId={currentTrip.id} />
             </div>
           )}
         </div>
@@ -190,4 +177,4 @@ export default function Home() {
       )}
     </div>
   );
-} 
+}

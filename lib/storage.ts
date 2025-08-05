@@ -21,21 +21,21 @@ export function savePackingList(tripDetails: any, items: any[]): SavedPackingLis
 
   const history = getPackingListHistory();
   history.unshift(savedList);
-  
+
   // Keep only the last 20 lists
   const limitedHistory = history.slice(0, 20);
-  
+
   localStorage.setItem(STORAGE_KEY, JSON.stringify(limitedHistory));
   return savedList;
 }
 
 export function getPackingListHistory(): SavedPackingList[] {
   if (typeof window === 'undefined') return [];
-  
+
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return [];
-    
+
     const history = JSON.parse(stored);
     return history.map((item: any) => ({
       ...item,
@@ -50,16 +50,14 @@ export function getPackingListHistory(): SavedPackingList[] {
 
 export function deletePackingList(id: string): void {
   const history = getPackingListHistory();
-  const filteredHistory = history.filter(list => list.id !== id);
+  const filteredHistory = history.filter((list) => list.id !== id);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredHistory));
 }
 
 export function updatePackingList(id: string, updates: Partial<SavedPackingList>): void {
   const history = getPackingListHistory();
-  const updatedHistory = history.map(list => 
-    list.id === id 
-      ? { ...list, ...updates, lastModified: new Date() }
-      : list
+  const updatedHistory = history.map((list) =>
+    list.id === id ? { ...list, ...updates, lastModified: new Date() } : list,
   );
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedHistory));
 }
@@ -70,4 +68,4 @@ function generateId(): string {
 
 export function clearHistory(): void {
   localStorage.removeItem(STORAGE_KEY);
-} 
+}

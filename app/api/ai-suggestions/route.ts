@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { generateAIPackingSuggestions } from '@/lib/ai';
 import { TripDetails } from '@/lib/types';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,9 +15,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error generating AI suggestions:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to generate suggestions' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Failed to generate suggestions' }, { status: 500 });
   }
-} 
+}
