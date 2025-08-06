@@ -3,6 +3,11 @@
 import { TripDetails } from '@/lib/types';
 import { AlertCircle, Baby, Calendar, Cloud, Home, MapPin, Plane, Users } from 'lucide-react';
 import { useState } from 'react';
+import Button from './ui/Button';
+import Checkbox from './ui/Checkbox';
+import FormField from './ui/FormField';
+import Input from './ui/Input';
+import Select from './ui/Select';
 
 interface TripFormProps {
   onSubmit: (details: TripDetails) => void;
@@ -24,9 +29,9 @@ const activities = [
   'relaxation',
 ];
 
-const seasons = ['spring', 'summer', 'fall', 'winter'] as const;
-const climates = ['tropical', 'temperate', 'cold', 'desert'] as const;
-const accommodations = ['hotel', 'hostel', 'camping', 'airbnb', 'other'] as const;
+const seasons = ['spring', 'summer', 'fall', 'winter'];
+const climates = ['tropical', 'temperate', 'cold', 'desert'];
+const accommodations = ['hotel', 'hostel', 'camping', 'airbnb', 'other'];
 
 export default function TripForm({ onSubmit, isLoading }: TripFormProps) {
   const [formData, setFormData] = useState<Partial<TripDetails>>({
@@ -89,165 +94,103 @@ export default function TripForm({ onSubmit, isLoading }: TripFormProps) {
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* Basic Information */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            <MapPin className="mr-2 inline h-4 w-4" />
-            Destination
-          </label>
-          <input
-            type="text"
-            value={formData.destination}
-            onChange={(e) => setFormData((prev) => ({ ...prev, destination: e.target.value }))}
-            className="input-field"
-            placeholder="e.g., Paris, France"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            <Calendar className="mr-2 inline h-4 w-4" />
-            Duration (days)
-          </label>
-          <input
-            type="number"
-            min="1"
-            max="365"
-            value={formData.duration}
-            onChange={(e) => setFormData((prev) => ({ ...prev, duration: parseInt(e.target.value) }))}
-            className="input-field"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            <Cloud className="mr-2 inline h-4 w-4" />
-            Season
-          </label>
-          <select
-            value={formData.season}
-            onChange={(e) => setFormData((prev) => ({ ...prev, season: e.target.value as any }))}
-            className="input-field"
-            required
-          >
-            {seasons.map((season) => (
-              <option key={season} value={season}>
-                {season.charAt(0).toUpperCase() + season.slice(1)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            <Cloud className="mr-2 inline h-4 w-4" />
-            Climate
-          </label>
-          <select
-            value={formData.climate}
-            onChange={(e) => setFormData((prev) => ({ ...prev, climate: e.target.value as any }))}
-            className="input-field"
-            required
-          >
-            {climates.map((climate) => (
-              <option key={climate} value={climate}>
-                {climate.charAt(0).toUpperCase() + climate.slice(1)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            <Users className="mr-2 inline h-4 w-4" />
-            Group Size
-          </label>
-          <input
-            type="number"
-            min="1"
-            max="20"
-            value={formData.groupSize}
-            onChange={(e) => setFormData((prev) => ({ ...prev, groupSize: parseInt(e.target.value) }))}
-            className="input-field"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            <Home className="mr-2 inline h-4 w-4" />
-            Accommodation
-          </label>
-          <select
-            value={formData.accommodation}
-            onChange={(e) => setFormData((prev) => ({ ...prev, accommodation: e.target.value as any }))}
-            className="input-field"
-            required
-          >
-            {accommodations.map((acc) => (
-              <option key={acc} value={acc}>
-                {acc.charAt(0).toUpperCase() + acc.slice(1)}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Input
+          icon={{ name: MapPin }}
+          label={{ name: 'Destination' }}
+          value={formData.destination}
+          onChange={(e) => setFormData((prev) => ({ ...prev, destination: e.target.value }))}
+          placeholder="e.g., Paris, France"
+          required
+        />
+        <Input
+          icon={{ name: Calendar }}
+          label={{ name: 'Duration (days)' }}
+          type="number"
+          min="1"
+          max="365"
+          value={formData.duration}
+          onChange={(e) => setFormData((prev) => ({ ...prev, duration: parseInt(e.target.value) }))}
+          required
+        />
+        <Select
+          icon={{ name: Cloud }}
+          label={{ name: 'Season' }}
+          value={formData.season}
+          onChange={(e) => setFormData((prev) => ({ ...prev, season: e.target.value as any }))}
+          options={seasons}
+          required
+        />
+        <Select
+          icon={{ name: Cloud }}
+          label={{ name: 'Climate' }}
+          value={formData.climate}
+          onChange={(e) => setFormData((prev) => ({ ...prev, climate: e.target.value as any }))}
+          options={climates}
+          required
+        />
+        <Input
+          icon={{ name: Users }}
+          label={{ name: 'Group Size' }}
+          type="number"
+          min="1"
+          max="20"
+          value={formData.groupSize}
+          onChange={(e) => setFormData((prev) => ({ ...prev, groupSize: parseInt(e.target.value) }))}
+          required
+        />
+        <Select
+          icon={{ name: Home }}
+          label={{ name: 'Accommodation' }}
+          value={formData.accommodation}
+          onChange={(e) => setFormData((prev) => ({ ...prev, accommodation: e.target.value as any }))}
+          options={accommodations}
+          required
+        />
       </div>
 
       {/* Activities */}
-      <div>
-        <label className="mb-4 block text-sm font-medium text-gray-700">
-          <Plane className="mr-2 inline h-4 w-4" />
-          Activities (select all that apply)
-        </label>
+
+      <FormField icon={{ name: Plane }} label={{ name: 'Activities (select all that apply)', className: 'mb-4' }}>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-          {activities.map((activity) => (
-            <label key={activity} className="flex cursor-pointer items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={formData.activities?.includes(activity)}
-                onChange={() => handleActivityToggle(activity)}
-                className="text-primary-600 focus:ring-primary-500 rounded border-gray-300"
-              />
-              <span className="text-sm text-gray-700 capitalize">{activity}</span>
-            </label>
+          {activities.map((activity, index) => (
+            <Checkbox
+              key={index}
+              label={{ name: activity, className: 'capitalize' }}
+              checked={formData.activities?.includes(activity)}
+              onChange={() => handleActivityToggle(activity)}
+            />
           ))}
         </div>
-      </div>
+      </FormField>
 
       {/* Children */}
       <div>
-        <label className="flex cursor-pointer items-center space-x-2">
-          <input
-            type="checkbox"
-            checked={formData.includesChildren}
-            onChange={(e) => setFormData((prev) => ({ ...prev, includesChildren: e.target.checked }))}
-            className="text-primary-600 focus:ring-primary-500 rounded border-gray-300"
-          />
-          <Baby className="h-4 w-4" />
-          <span className="text-sm font-medium text-gray-700">Traveling with children</span>
-        </label>
+        <Checkbox
+          icon={{ name: Baby }}
+          label={{ name: 'Traveling with children', className: 'font-medium' }}
+          checked={formData.includesChildren}
+          onChange={(e) => setFormData((prev) => ({ ...prev, includesChildren: e.target.checked }))}
+        />
       </div>
 
       {/* Special Needs */}
+
       <div>
-        <label className="mb-2 block text-sm font-medium text-gray-700">
-          <AlertCircle className="mr-2 inline h-4 w-4" />
-          Special Needs (optional)
-        </label>
-        <div className="mb-3 flex space-x-2">
-          <input
-            type="text"
-            value={specialNeed}
-            onChange={(e) => setSpecialNeed(e.target.value)}
-            className="input-field flex-1"
-            placeholder="e.g., medical conditions, dietary restrictions"
-            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleSpecialNeedAdd())}
-          />
-          <button type="button" onClick={handleSpecialNeedAdd} className="btn-primary">
-            Add
-          </button>
-        </div>
+        <FormField icon={{ name: AlertCircle }} label={{ name: 'Special Needs (optional)' }}>
+          <div className="mb-3 flex space-x-2">
+            <Input
+              value={specialNeed}
+              onChange={(e) => setSpecialNeed(e.target.value)}
+              className="flex-1"
+              placeholder="e.g., medical conditions, dietary restrictions"
+              onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleSpecialNeedAdd())}
+              withFormField={false}
+            />
+            <Button onClick={handleSpecialNeedAdd} className="btn-primary">
+              Add
+            </Button>
+          </div>
+        </FormField>
         {formData.specialNeeds && formData.specialNeeds.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {formData.specialNeeds.map((need, index) => (
@@ -256,13 +199,12 @@ export default function TripForm({ onSubmit, isLoading }: TripFormProps) {
                 className="bg-primary-100 text-primary-800 inline-flex items-center rounded-full px-3 py-1 text-sm"
               >
                 {need}
-                <button
-                  type="button"
+                <Button
                   onClick={() => handleSpecialNeedRemove(need)}
                   className="text-primary-600 hover:text-primary-800 ml-2"
                 >
-                  ×
-                </button>
+                  x
+                </Button>
               </span>
             ))}
           </div>
@@ -271,13 +213,13 @@ export default function TripForm({ onSubmit, isLoading }: TripFormProps) {
 
       {/* Submit Button */}
       <div className="text-center">
-        <button
+        <Button
           type="submit"
           disabled={isLoading || !formData.destination || !formData.activities?.length}
           className="btn-primary px-8 py-3 text-lg disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isLoading ? 'Generating...' : 'Generate Packing List'}
-        </button>
+        </Button>
       </div>
     </form>
   );

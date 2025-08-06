@@ -1,3 +1,5 @@
+import { ComponentType } from 'react';
+
 export interface TripDetails {
   destination: string;
   duration: number;
@@ -25,4 +27,13 @@ export interface PackingList {
   tripDetails: TripDetails;
   items: PackingItem[];
   createdAt: Date;
+}
+
+export interface IconI {
+  name: ComponentType<{ className?: string }>;
+  className?: string;
+}
+export interface LabelI {
+  name: string;
+  className?: string;
 }
