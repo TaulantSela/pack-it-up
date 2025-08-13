@@ -66,7 +66,7 @@ A modern, intelligent packing list app built with Next.js that generates persona
 
 ```bash
 git clone <repository-url>
-cd pack-it-up-v2
+cd pack-it-up
 ```
 
 2. Install dependencies:
@@ -102,7 +102,7 @@ npm start
 ## Project Structure
 
 ```
-pack-it-up-v2/
+pack-it-up/
 ├── app/
 │   ├── globals.css          # Global styles
 │   ├── layout.tsx           # Root layout

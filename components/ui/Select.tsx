@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import { ComponentPropsWithRef } from 'react';
-import FormField, { BaseFormFieldProps } from './FormField';
+import FormField, { BaseFormFieldProps } from './form-field';
 
 export type OptionProps = {
   value: string;

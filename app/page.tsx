@@ -1,8 +1,8 @@
 'use client';
 
-import PackingHistory from '@/components/PackingHistory';
-import PackingList from '@/components/PackingList';
-import TripForm from '@/components/TripForm';
+import PackingHistory from '@/components/packing-history';
+import PackingList from '@/components/packing-list';
+import TripForm from '@/components/trip-form';
 import { PackingItem, TripDetails } from '@/lib/types';
 import { Calendar, History, Luggage, MapPin, Users } from 'lucide-react';
 import { useState } from 'react';

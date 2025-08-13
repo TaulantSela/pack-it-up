@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import { ComponentPropsWithRef } from 'react';
-import FormField, { BaseFormFieldProps } from './FormField';
+import FormField, { BaseFormFieldProps } from './form-field';
 
 // Input component should be used only for the folloring input types
 export type InputType = 'text' | 'email' | 'password' | 'tel' | 'number' | 'file';

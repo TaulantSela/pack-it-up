@@ -1,13 +1,13 @@
 'use client';
 
+import Button from '@/components/ui/button';
+import Checkbox from '@/components/ui/checkbox';
+import FormField from '@/components/ui/form-field';
+import Input from '@/components/ui/input';
+import Select from '@/components/ui/select';
 import { TripDetails } from '@/lib/types';
 import { AlertCircle, Baby, Calendar, Cloud, Home, MapPin, Plane, Users } from 'lucide-react';
 import { useState } from 'react';
-import Button from './ui/Button';
-import Checkbox from './ui/Checkbox';
-import FormField from './ui/FormField';
-import Input from './ui/Input';
-import Select from './ui/Select';
 
 interface TripFormProps {
   onSubmit: (details: TripDetails) => void;
