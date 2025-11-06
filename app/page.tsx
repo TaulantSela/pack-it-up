@@ -2,6 +2,7 @@
 
 import PackingHistory from '@/components/packing-history';
 import PackingList from '@/components/packing-list';
+import { ThemeToggle } from '@/components/theme-toggle';
 import TripForm from '@/components/trip-form';
 import { PackingItem, TripDetails } from '@/lib/types';
 import { SignInButton, SignUpButton, UserButton, useUser } from '@clerk/nextjs';
@@ -97,30 +98,35 @@ export default function Home() {
   // Show sign-in prompt if not authenticated
   if (!isSignedIn) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="container mx-auto px-4 py-8">
-          <div className="mb-12 text-center">
-            <div className="mb-4 flex items-center justify-center">
-              <Luggage className="text-primary-600 mr-3 h-12 w-12" />
-              <h1 className="text-4xl font-bold text-gray-900">Pack It Up</h1>
-            </div>
-            <p className="mx-auto max-w-2xl text-xl text-gray-600">
-              Generate personalized packing lists based on your destination, activities, and travel preferences
-            </p>
-          </div>
+      <div className="container mx-auto px-4 py-8">
+        {/* Theme toggle for non-authenticated users */}
+        <div className="mb-8 flex justify-end">
+          <ThemeToggle />
+        </div>
 
-          <div className="mx-auto max-w-md text-center">
-            <div className="card">
-              <h2 className="mb-4 text-2xl font-semibold text-gray-900">Welcome!</h2>
-              <p className="mb-6 text-gray-600">Sign in to create and manage your personalized packing lists</p>
-              <div className="flex flex-col gap-4">
-                <SignInButton mode="modal">
-                  <button className="btn-primary w-full">Sign In</button>
-                </SignInButton>
-                <SignUpButton mode="modal">
-                  <button className="btn-secondary w-full">Create Account</button>
-                </SignUpButton>
-              </div>
+        <div className="mb-12 text-center">
+          <div className="mb-4 flex items-center justify-center">
+            <Luggage className="text-primary-600 dark:text-primary-400 mr-3 h-12 w-12" />
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Pack It Up</h1>
+          </div>
+          <p className="mx-auto max-w-2xl text-xl text-gray-700 dark:text-gray-200">
+            Generate personalized packing lists based on your destination, activities, and travel preferences
+          </p>
+        </div>
+
+        <div className="mx-auto max-w-md text-center">
+          <div className="card">
+            <h2 className="mb-4 text-2xl font-semibold text-gray-900 dark:text-white">Welcome!</h2>
+            <p className="mb-6 text-gray-700 dark:text-gray-200">
+              Sign in to create and manage your personalized packing lists
+            </p>
+            <div className="flex flex-col gap-4">
+              <SignInButton mode="modal">
+                <button className="btn-primary w-full">Sign In</button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <button className="btn-secondary w-full">Create Account</button>
+              </SignUpButton>
             </div>
           </div>
         </div>
@@ -129,22 +135,23 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <>
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-12 text-center">
           <div className="mb-4 flex items-center justify-center">
-            <Luggage className="text-primary-600 mr-3 h-12 w-12" />
-            <h1 className="text-4xl font-bold text-gray-900">Pack It Up</h1>
+            <Luggage className="text-primary-600 dark:text-primary-400 mr-3 h-12 w-12" />
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Pack It Up</h1>
           </div>
-          <p className="mx-auto max-w-2xl text-xl text-gray-600">
+          <p className="mx-auto max-w-2xl text-xl text-gray-700 dark:text-gray-200">
             Generate personalized packing lists based on your destination, activities, and travel preferences
           </p>
           <div className="mt-4 flex items-center justify-center gap-3">
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-700 dark:text-gray-200">
               Welcome, {user?.firstName || user?.emailAddresses[0].emailAddress}!
             </span>
             <UserButton afterSignOutUrl="/" />
+            <ThemeToggle />
           </div>
         </div>
 
@@ -153,8 +160,10 @@ export default function Home() {
           {!currentTrip ? (
             <div className="card mx-auto max-w-4xl">
               <div className="mb-8 text-center">
-                <h2 className="mb-4 text-2xl font-semibold text-gray-900">Tell us about your trip</h2>
-                <p className="text-gray-600">Fill out the form below to get your personalized packing list</p>
+                <h2 className="mb-4 text-2xl font-semibold text-gray-900 dark:text-white">Tell us about your trip</h2>
+                <p className="text-gray-700 dark:text-gray-200">
+                  Fill out the form below to get your personalized packing list
+                </p>
               </div>
 
               {/* History Button */}
@@ -175,7 +184,7 @@ export default function Home() {
               {/* Trip Summary */}
               <div className="card">
                 <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-2xl font-semibold text-gray-900">Your Trip</h2>
+                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Your Trip</h2>
                   <div className="flex items-center space-x-4">
                     <button onClick={() => setShowHistory(true)} className="btn-secondary flex items-center space-x-2">
                       <History className="h-4 w-4" />
@@ -188,26 +197,26 @@ export default function Home() {
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <div className="flex items-center space-x-2">
-                    <MapPin className="text-primary-600 h-5 w-5" />
-                    <span className="text-gray-700">
+                    <MapPin className="text-primary-600 dark:text-primary-400 h-5 w-5" />
+                    <span className="text-gray-800 dark:text-gray-100">
                       <strong>Destination:</strong> {currentTrip.destination}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Calendar className="text-primary-600 h-5 w-5" />
-                    <span className="text-gray-700">
+                    <Calendar className="text-primary-600 dark:text-primary-400 h-5 w-5" />
+                    <span className="text-gray-800 dark:text-gray-100">
                       <strong>Duration:</strong> {currentTrip.duration} days
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Users className="text-primary-600 h-5 w-5" />
-                    <span className="text-gray-700">
+                    <Users className="text-primary-600 dark:text-primary-400 h-5 w-5" />
+                    <span className="text-gray-800 dark:text-gray-100">
                       <strong>Group Size:</strong> {currentTrip.groupSize} people
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Luggage className="text-primary-600 h-5 w-5" />
-                    <span className="text-gray-700">
+                    <Luggage className="text-primary-600 dark:text-primary-400 h-5 w-5" />
+                    <span className="text-gray-800 dark:text-gray-100">
                       <strong>Climate:</strong> {currentTrip.climate}
                     </span>
                   </div>
@@ -229,6 +238,6 @@ export default function Home() {
           onClose={() => setShowHistory(false)}
         />
       )}
-    </div>
+    </>
   );
 }

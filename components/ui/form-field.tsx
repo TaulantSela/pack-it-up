@@ -19,7 +19,7 @@ export default function FormField({ icon, label, className, withFormField = true
   return withFormField ? (
     <div className={cn(className)}>
       {(Icon || label) && (
-        <label className={cn('mb-2 block text-sm font-medium text-gray-700', label?.className)}>
+        <label className={cn('mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-100', label?.className)}>
           {Icon && <Icon className={cn('mr-2 inline h-4 w-4', icon?.className)} />}
           {label?.name}
         </label>

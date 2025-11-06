@@ -19,12 +19,12 @@ const categoryIcons = {
 };
 
 const categoryColors = {
-  clothing: 'bg-blue-100 text-blue-800',
-  toiletries: 'bg-green-100 text-green-800',
-  electronics: 'bg-purple-100 text-purple-800',
-  documents: 'bg-red-100 text-red-800',
-  accessories: 'bg-orange-100 text-orange-800',
-  other: 'bg-gray-100 text-gray-800',
+  clothing: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  toiletries: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  electronics: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  documents: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  accessories: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+  other: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
 };
 
 export default function PackingList({ items, tripId }: PackingListProps) {
@@ -127,16 +127,16 @@ export default function PackingList({ items, tripId }: PackingListProps) {
       {/* Header with Progress */}
       <div className="card">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-2xl font-semibold text-gray-900">Your Packing List</h2>
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Your Packing List</h2>
           <div className="flex items-center space-x-4">
             <label className="flex cursor-pointer items-center space-x-2">
               <input
                 type="checkbox"
                 checked={showOnlyEssential}
                 onChange={(e) => setShowOnlyEssential(e.target.checked)}
-                className="text-primary-600 focus:ring-primary-500 rounded border-gray-300"
+                className="text-primary-600 focus:ring-primary-500 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
               />
-              <span className="text-sm text-gray-700">Show essential only</span>
+              <span className="text-sm text-gray-800 dark:text-gray-100">Show essential only</span>
             </label>
             <button onClick={handleExport} className="btn-secondary flex items-center space-x-2">
               <Download className="h-4 w-4" />
@@ -151,7 +151,7 @@ export default function PackingList({ items, tripId }: PackingListProps) {
 
         {/* Progress Bar */}
         <div className="mb-4">
-          <div className="mb-2 flex justify-between text-sm text-gray-600">
+          <div className="mb-2 flex justify-between text-sm text-gray-700 dark:text-gray-200">
             <span>
               Progress: {checkedCount} of {totalItems} items packed
             </span>

@@ -16,9 +16,9 @@ export default function Input({ label, className, children, icon, ...rest }: Inp
 
   return (
     <label className="flex cursor-pointer items-center space-x-2">
-      <input type="checkbox" className="text-primary-600 focus:ring-primary-500 rounded border-gray-300" {...rest} />
+      <input type="checkbox" className="h-4 w-4 text-primary-600 focus:ring-primary-500 rounded border-gray-400 dark:border-gray-500 dark:bg-gray-700 dark:checked:bg-primary-500" {...rest} />
       {Icon && <Icon className={cn('h-4 w-4', icon?.className)} />}
-      <span className={cn('text-sm text-gray-700', label.className)}>{label.name}</span>
+      <span className={cn('text-sm font-medium text-gray-800 dark:text-gray-100', label.className)}>{label.name}</span>
     </label>
   );
 }
