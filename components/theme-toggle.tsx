@@ -14,7 +14,7 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <button className="relative h-9 w-9 rounded-lg bg-gray-200 p-0 dark:bg-gray-700">
+      <button className="relative h-9 w-9 rounded-lg p-0">
         <Sun className="absolute top-1/2 left-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 text-gray-700 dark:text-gray-200" />
       </button>
     );
@@ -23,7 +23,7 @@ export function ThemeToggle() {
   return (
     <button
       onClick={() => setTheme(resolvedTheme === 'light' ? 'dark' : 'light')}
-      className="relative h-9 w-9 rounded-lg bg-gray-200 p-0 transition-all duration-300 hover:scale-110 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
+      className="relative h-9 w-9 rounded-lg p-0 transition-all duration-300 hover:scale-110 hover:bg-gray-300 dark:hover:bg-gray-600"
     >
       <Sun className="absolute top-1/2 left-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 scale-100 rotate-0 text-gray-700 transition-all dark:scale-0 dark:-rotate-90" />
       <Moon className="absolute top-1/2 left-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 scale-0 rotate-90 text-gray-200 transition-all dark:scale-100 dark:rotate-0" />
