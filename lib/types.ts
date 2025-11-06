@@ -15,7 +15,7 @@ export interface TripDetails {
 export interface PackingItem {
   id: string;
   name: string;
-  category: 'clothing' | 'toiletries' | 'electronics' | 'documents' | 'accessories' | 'other';
+  category: 'clothing' | 'toiletries' | 'electronics' | 'documents' | 'accessories' | 'other' | string;
   essential: boolean;
   quantity: number;
   notes?: string;
