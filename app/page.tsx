@@ -4,6 +4,7 @@ import PackingHistory from '@/components/packing-history';
 import PackingList from '@/components/packing-list';
 import TripForm from '@/components/trip-form';
 import { PackingItem, TripDetails } from '@/lib/types';
+import { SignInButton, SignUpButton, UserButton, useUser } from '@clerk/nextjs';
 import { Calendar, History, Luggage, MapPin, Users } from 'lucide-react';
 import { useState } from 'react';
 
@@ -26,6 +27,7 @@ interface Trip {
 }
 
 export default function Home() {
+  const { isSignedIn, user, isLoaded } = useUser();
   const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -42,15 +44,18 @@ export default function Home() {
         body: JSON.stringify({ tripDetails: details }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to create trip');
+        const errorDetails = data.details ? `\n\nDetails: ${data.details}` : '';
+        throw new Error(data.error || 'Failed to create trip' + errorDetails);
       }
 
-      const data = await response.json();
       setCurrentTrip(data.trip);
     } catch (error) {
       console.error('Error creating trip:', error);
-      alert('Failed to create trip. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create trip. Please try again.';
+      alert(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -80,6 +85,49 @@ export default function Home() {
     }
   };
 
+  // Show loading state while checking authentication
+  if (!isLoaded) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="border-primary-600 h-12 w-12 animate-spin rounded-full border-b-2"></div>
+      </div>
+    );
+  }
+
+  // Show sign-in prompt if not authenticated
+  if (!isSignedIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="container mx-auto px-4 py-8">
+          <div className="mb-12 text-center">
+            <div className="mb-4 flex items-center justify-center">
+              <Luggage className="text-primary-600 mr-3 h-12 w-12" />
+              <h1 className="text-4xl font-bold text-gray-900">Pack It Up</h1>
+            </div>
+            <p className="mx-auto max-w-2xl text-xl text-gray-600">
+              Generate personalized packing lists based on your destination, activities, and travel preferences
+            </p>
+          </div>
+
+          <div className="mx-auto max-w-md text-center">
+            <div className="card">
+              <h2 className="mb-4 text-2xl font-semibold text-gray-900">Welcome!</h2>
+              <p className="mb-6 text-gray-600">Sign in to create and manage your personalized packing lists</p>
+              <div className="flex flex-col gap-4">
+                <SignInButton mode="modal">
+                  <button className="btn-primary w-full">Sign In</button>
+                </SignInButton>
+                <SignUpButton mode="modal">
+                  <button className="btn-secondary w-full">Create Account</button>
+                </SignUpButton>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-8">
@@ -92,6 +140,12 @@ export default function Home() {
           <p className="mx-auto max-w-2xl text-xl text-gray-600">
             Generate personalized packing lists based on your destination, activities, and travel preferences
           </p>
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <span className="text-sm text-gray-600">
+              Welcome, {user?.firstName || user?.emailAddresses[0].emailAddress}!
+            </span>
+            <UserButton afterSignOutUrl="/" />
+          </div>
         </div>
 
         {/* Main Content */}

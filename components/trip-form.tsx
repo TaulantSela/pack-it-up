@@ -1,10 +1,10 @@
 'use client';
 
-import Button from '@/components/ui/button';
-import Checkbox from '@/components/ui/checkbox';
+import Button from '@/components/ui/Button';
+import Checkbox from '@/components/ui/Checkbox';
 import FormField from '@/components/ui/form-field';
-import Input from '@/components/ui/input';
-import Select from '@/components/ui/select';
+import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
 import { TripDetails } from '@/lib/types';
 import { AlertCircle, Baby, Calendar, Cloud, Home, MapPin, Plane, Users } from 'lucide-react';
 import { useState } from 'react';
