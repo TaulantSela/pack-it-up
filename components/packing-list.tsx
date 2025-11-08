@@ -16,11 +16,16 @@ import {
   X,
   Zap,
 } from 'lucide-react';
+import type { MouseEvent, SyntheticEvent } from 'react';
 import { useEffect, useState } from 'react';
 
 interface PackingListProps {
   items: PackingItem[];
   tripId: string;
+  isGuest?: boolean;
+  onRequireAuth?: () => void;
+  initialCheckedIds?: string[];
+  onGuestToggleItem?: (itemId: string, checked: boolean) => void;
 }
 
 const categoryIcons = {
@@ -41,7 +46,14 @@ const categoryColors = {
   other: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
 };
 
-export default function PackingList({ items, tripId }: PackingListProps) {
+export default function PackingList({
+  items,
+  tripId,
+  isGuest = false,
+  onRequireAuth,
+  initialCheckedIds,
+  onGuestToggleItem,
+}: PackingListProps) {
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const [showOnlyEssential, setShowOnlyEssential] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,6 +69,38 @@ export default function PackingList({ items, tripId }: PackingListProps) {
   const [newCategoryQuantity, setNewCategoryQuantity] = useState(1);
   const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
   const [tempQuantity, setTempQuantity] = useState<number>(1);
+  const [hasShownGuestNotice, setHasShownGuestNotice] = useState(false);
+
+  const notifyGuestRestriction = () => {
+    onRequireAuth?.();
+    if (!hasShownGuestNotice) {
+      setHasShownGuestNotice(true);
+    }
+  };
+
+  const isPreventedTarget = (target: EventTarget | null, currentTarget: EventTarget | null) => {
+    if (!(target instanceof HTMLElement) || !(currentTarget instanceof HTMLElement)) {
+      return false;
+    }
+    const interactive = target.closest('[data-prevent-card-toggle="true"]');
+    if (!interactive) {
+      return false;
+    }
+    return interactive !== currentTarget;
+  };
+
+  const handleCardClick = (event: MouseEvent<HTMLDivElement>, itemId: string) => {
+    if (isPreventedTarget(event.target, event.currentTarget)) {
+      return;
+    }
+    toggleItem(itemId);
+  };
+
+  const handleCardPointerCapture = (event: SyntheticEvent<HTMLDivElement>) => {
+    if (isPreventedTarget(event.target, event.currentTarget)) {
+      event.stopPropagation();
+    }
+  };
 
   // Load progress from database
   useEffect(() => {
@@ -74,10 +118,20 @@ export default function PackingList({ items, tripId }: PackingListProps) {
       }
     };
 
-    if (tripId) {
+    if (tripId && !isGuest) {
       loadProgress();
     }
-  }, [tripId]);
+  }, [tripId, isGuest]);
+
+  useEffect(() => {
+    if (!isGuest) return;
+    const ids = initialCheckedIds ?? [];
+    const nextSet = new Set(ids);
+    if (nextSet.size === checkedItems.size && ids.every((id) => checkedItems.has(id))) {
+      return;
+    }
+    setCheckedItems(nextSet);
+  }, [initialCheckedIds, isGuest, checkedItems]);
 
   const toggleItem = async (itemId: string) => {
     const newChecked = new Set(checkedItems);
@@ -90,6 +144,12 @@ export default function PackingList({ items, tripId }: PackingListProps) {
     }
 
     setCheckedItems(newChecked);
+
+    if (isGuest) {
+      onGuestToggleItem?.(itemId, !isChecked);
+      notifyGuestRestriction();
+      return;
+    }
 
     // Save to database
     try {
@@ -136,6 +196,11 @@ export default function PackingList({ items, tripId }: PackingListProps) {
   const progress = totalItems > 0 ? (checkedCount / totalItems) * 100 : 0;
 
   const handleAddItem = async (category: string) => {
+    if (isGuest) {
+      notifyGuestRestriction();
+      return;
+    }
+
     if (!newItemName.trim()) return;
 
     try {
@@ -170,6 +235,11 @@ export default function PackingList({ items, tripId }: PackingListProps) {
   };
 
   const handleDeleteItem = async (itemId: string) => {
+    if (isGuest) {
+      notifyGuestRestriction();
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this item?')) return;
 
     try {
@@ -195,6 +265,11 @@ export default function PackingList({ items, tripId }: PackingListProps) {
   };
 
   const handleAddCategory = async () => {
+    if (isGuest) {
+      notifyGuestRestriction();
+      return;
+    }
+
     if (!newCategoryName.trim() || !newCategoryFirstItem.trim()) {
       alert('Please provide both a category name and first item name.');
       return;
@@ -232,6 +307,11 @@ export default function PackingList({ items, tripId }: PackingListProps) {
 
   const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
+
+    if (isGuest) {
+      notifyGuestRestriction();
+      return;
+    }
 
     try {
       const response = await fetch(`/api/trips/${tripId}/items/${itemId}`, {
@@ -317,7 +397,13 @@ export default function PackingList({ items, tripId }: PackingListProps) {
       {/* Add Category Button */}
       <div className="flex justify-center">
         <button
-          onClick={() => setShowAddCategory(!showAddCategory)}
+          onClick={() => {
+            if (isGuest) {
+              notifyGuestRestriction();
+              return;
+            }
+            setShowAddCategory(!showAddCategory);
+          }}
           className="btn-secondary flex items-center space-x-2"
         >
           {showAddCategory ? (
@@ -415,7 +501,13 @@ export default function PackingList({ items, tripId }: PackingListProps) {
                   </span>
                 </div>
                 <button
-                  onClick={() => setAddingToCategory(addingToCategory === category ? null : category)}
+                  onClick={() => {
+                    if (isGuest) {
+                      notifyGuestRestriction();
+                      return;
+                    }
+                    setAddingToCategory(addingToCategory === category ? null : category);
+                  }}
                   className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center space-x-1 text-sm"
                 >
                   {addingToCategory === category ? (
@@ -439,15 +531,31 @@ export default function PackingList({ items, tripId }: PackingListProps) {
                   return (
                     <div
                       key={item.id}
-                      className={`flex items-center space-x-3 rounded-lg border p-3 transition-all duration-200 ${
+                      role="button"
+                      tabIndex={0}
+                      onClick={(event) => handleCardClick(event, item.id)}
+                      onMouseDownCapture={handleCardPointerCapture}
+                      onTouchStartCapture={handleCardPointerCapture}
+                      onKeyDown={(event) => {
+                        if (event.target !== event.currentTarget) return;
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          toggleItem(item.id);
+                        }
+                      }}
+                      className={`flex cursor-pointer items-center space-x-3 rounded-lg border p-3 transition-all duration-200 ${
                         isChecked
                           ? 'border-green-200 bg-green-50 dark:border-green-700 dark:bg-green-900/30'
                           : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-600 dark:bg-gray-700/50 dark:hover:border-gray-500'
                       }`}
                     >
                       <button
-                        onClick={() => toggleItem(item.id)}
-                        disabled={isLoading}
+                        data-prevent-card-toggle="true"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleItem(item.id);
+                        }}
+                        disabled={isLoading && !isGuest}
                         className="flex-shrink-0 disabled:opacity-50"
                       >
                         {isChecked ? (
@@ -474,12 +582,19 @@ export default function PackingList({ items, tripId }: PackingListProps) {
                         {item.notes && <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{item.notes}</p>}
                       </div>
 
-                      <div className="flex items-center space-x-2">
+                      <div
+                        className="flex items-center space-x-2"
+                        data-prevent-card-toggle="true"
+                        onClick={(event) => event.stopPropagation()}
+                        onTouchStart={(event) => event.stopPropagation()}
+                      >
                         {editingQuantity === item.id ? (
-                          <div className="flex items-center space-x-1">
+                          <div className="flex items-center space-x-1" data-prevent-card-toggle="true">
                             <input
                               type="number"
                               value={tempQuantity}
+                              data-prevent-card-toggle="true"
+                              onClick={(event) => event.stopPropagation()}
                               onChange={(e) => setTempQuantity(parseInt(e.target.value) || 1)}
                               onBlur={() => {
                                 handleUpdateQuantity(item.id, tempQuantity);
@@ -499,7 +614,13 @@ export default function PackingList({ items, tripId }: PackingListProps) {
                           </div>
                         ) : (
                           <button
-                            onClick={() => {
+                            data-prevent-card-toggle="true"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (isGuest) {
+                                notifyGuestRestriction();
+                                return;
+                              }
                               setEditingQuantity(item.id);
                               setTempQuantity(item.quantity);
                             }}
@@ -511,7 +632,11 @@ export default function PackingList({ items, tripId }: PackingListProps) {
                         )}
                         {!item.aiSuggested && (
                           <button
-                            onClick={() => handleDeleteItem(item.id)}
+                            data-prevent-card-toggle="true"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleDeleteItem(item.id);
+                            }}
                             className="text-red-600 transition-colors hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
                             title="Delete custom item"
                           >

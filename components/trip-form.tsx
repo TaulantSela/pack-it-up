@@ -12,6 +12,7 @@ import { useState } from 'react';
 interface TripFormProps {
   onSubmit: (details: TripDetails) => void;
   isLoading: boolean;
+  isGuest?: boolean;
 }
 
 const activities = [
@@ -33,7 +34,7 @@ const seasons = ['spring', 'summer', 'fall', 'winter'];
 const climates = ['tropical', 'temperate', 'cold', 'desert'];
 const accommodations = ['hotel', 'hostel', 'camping', 'airbnb', 'other'];
 
-export default function TripForm({ onSubmit, isLoading }: TripFormProps) {
+export default function TripForm({ onSubmit, isLoading, isGuest = false }: TripFormProps) {
   const [formData, setFormData] = useState<Partial<TripDetails>>({
     destination: '',
     duration: 1,
@@ -89,6 +90,8 @@ export default function TripForm({ onSubmit, isLoading }: TripFormProps) {
       specialNeeds: prev.specialNeeds?.filter((n) => n !== need) || [],
     }));
   };
+
+  const submitLabel = isLoading ? 'Generating...' : isGuest ? 'Preview Packing List' : 'Generate Packing List';
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
@@ -212,13 +215,18 @@ export default function TripForm({ onSubmit, isLoading }: TripFormProps) {
       </div>
 
       {/* Submit Button */}
-      <div className="text-center">
+      <div className="space-y-3 text-center">
+        {isGuest && (
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            You&apos;re previewing Pack It Up. Sign in to save your lists, track progress, and access history later.
+          </p>
+        )}
         <Button
           type="submit"
           disabled={isLoading || !formData.destination || !formData.activities?.length}
           className="btn-primary px-8 py-3 text-lg disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isLoading ? 'Generating...' : 'Generate Packing List'}
+          {submitLabel}
         </Button>
       </div>
     </form>

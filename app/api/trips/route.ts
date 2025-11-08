@@ -2,89 +2,180 @@ import { generateAIPackingSuggestions } from '@/lib/ai';
 import { prisma } from '@/lib/db';
 import { TripDetails } from '@/lib/types';
 import { auth, currentUser } from '@clerk/nextjs/server';
+import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
+
+type IncomingPackingItem = {
+  id?: string;
+  name: string;
+  category: string;
+  essential: boolean;
+  quantity: number;
+  notes?: string | null;
+  aiSuggested?: boolean;
+};
+
+type IncomingGuestProgress = {
+  itemId: string;
+  checked: boolean;
+};
 
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth();
+    const body = await request.json();
+    const tripDetails: TripDetails = body.tripDetails;
+    const isGuestRequest = !userId && Boolean(body.guestMode);
 
-    if (!userId) {
+    if (!userId && !isGuestRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const tripDetails: TripDetails = body.tripDetails;
+    const migrateGuestTrip: { items: IncomingPackingItem[]; progress?: IncomingGuestProgress[] } | undefined = userId
+      ? body.migrateGuestTrip
+      : undefined;
+    const suggestionItems: IncomingPackingItem[] =
+      migrateGuestTrip?.items ?? (await generateAIPackingSuggestions(tripDetails));
 
-    // Generate AI-powered packing suggestions
-    const aiSuggestions = await generateAIPackingSuggestions(tripDetails);
+    if (userId) {
+      const clerkUser = await currentUser();
+      const primaryEmail = clerkUser?.emailAddresses.find((email) => email.id === clerkUser.primaryEmailAddressId);
+      const userEmail = primaryEmail?.emailAddress || clerkUser?.emailAddresses[0]?.emailAddress || null;
 
-    // Get user email from Clerk
-    const clerkUser = await currentUser();
+      console.log('Creating/updating user:', {
+        userId,
+        userEmail,
+        totalEmails: clerkUser?.emailAddresses.length,
+        primaryEmailId: clerkUser?.primaryEmailAddressId,
+      });
 
-    // Try to get the primary email, or the first email, or null
-    const primaryEmail = clerkUser?.emailAddresses.find((email) => email.id === clerkUser.primaryEmailAddressId);
-    const userEmail = primaryEmail?.emailAddress || clerkUser?.emailAddresses[0]?.emailAddress || null;
+      try {
+        await prisma.user.upsert({
+          where: { id: userId },
+          update: {
+            email: userEmail,
+          },
+          create: {
+            id: userId,
+            email: userEmail,
+          },
+        });
+      } catch (userError) {
+        console.error('Error creating/updating user:', userError);
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Failed to create user account',
+            details: userError instanceof Error ? userError.message : 'Unknown error',
+          },
+          { status: 500 },
+        );
+      }
 
-    console.log('Creating/updating user:', {
-      userId,
-      userEmail,
-      totalEmails: clerkUser?.emailAddresses.length,
-      primaryEmailId: clerkUser?.primaryEmailAddressId,
-    });
-
-    // Ensure user exists in database
-    try {
-      await prisma.user.upsert({
-        where: { id: userId },
-        update: {
-          email: userEmail, // Update email if it changed
+      let trip = await prisma.trip.create({
+        data: {
+          name: `${tripDetails.destination} - ${tripDetails.duration} days`,
+          destination: tripDetails.destination,
+          duration: tripDetails.duration,
+          season: tripDetails.season,
+          climate: tripDetails.climate,
+          activities: JSON.stringify(tripDetails.activities),
+          accommodation: tripDetails.accommodation,
+          groupSize: tripDetails.groupSize,
+          includesChildren: tripDetails.includesChildren,
+          specialNeeds: JSON.stringify(tripDetails.specialNeeds),
+          userId: userId,
+          items: {
+            create: suggestionItems.map((item) => ({
+              name: item.name,
+              category: item.category,
+              essential: item.essential,
+              quantity: item.quantity,
+              notes: item.notes ?? null,
+              aiSuggested: item.aiSuggested ?? true,
+            })),
+          },
         },
-        create: {
-          id: userId,
-          email: userEmail,
+        include: {
+          items: true,
+          progress: true,
         },
       });
-    } catch (userError) {
-      console.error('Error creating/updating user:', userError);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Failed to create user account',
-          details: userError instanceof Error ? userError.message : 'Unknown error',
-        },
-        { status: 500 },
-      );
+
+      if (migrateGuestTrip?.progress?.length) {
+        const idMapping = new Map<string, string>();
+        migrateGuestTrip.items.forEach((item, index) => {
+          if (!trip.items[index]) {
+            return;
+          }
+          if (item.id) {
+            idMapping.set(item.id, trip.items[index].id);
+          } else {
+            idMapping.set(String(index), trip.items[index].id);
+          }
+        });
+
+        const progressToCreate = migrateGuestTrip.progress
+          .filter((progressEntry) => progressEntry.checked)
+          .map((progressEntry) => {
+            const mappedId = idMapping.get(progressEntry.itemId);
+            if (!mappedId) {
+              return null;
+            }
+            return {
+              tripId: trip.id,
+              itemId: mappedId,
+              checked: true,
+            };
+          })
+          .filter((entry): entry is { tripId: string; itemId: string; checked: boolean } => Boolean(entry));
+
+        if (progressToCreate.length) {
+          await prisma.packingProgress.createMany({
+            data: progressToCreate,
+            skipDuplicates: true,
+          });
+
+          trip = await prisma.trip.findUniqueOrThrow({
+            where: { id: trip.id },
+            include: {
+              items: true,
+              progress: true,
+            },
+          });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        trip,
+      });
     }
 
-    // Create the trip in the database
-    const trip = await prisma.trip.create({
-      data: {
-        name: `${tripDetails.destination} - ${tripDetails.duration} days`,
-        destination: tripDetails.destination,
-        duration: tripDetails.duration,
-        season: tripDetails.season,
-        climate: tripDetails.climate,
-        activities: JSON.stringify(tripDetails.activities),
-        accommodation: tripDetails.accommodation,
-        groupSize: tripDetails.groupSize,
-        includesChildren: tripDetails.includesChildren,
-        specialNeeds: JSON.stringify(tripDetails.specialNeeds),
-        userId: userId,
-        items: {
-          create: aiSuggestions.map((item) => ({
-            name: item.name,
-            category: item.category,
-            essential: item.essential,
-            quantity: item.quantity,
-            notes: item.notes,
-            aiSuggested: item.aiSuggested,
-          })),
-        },
-      },
-      include: {
-        items: true,
-      },
-    });
+    const guestTripId = `guest-${randomUUID()}`;
+    const timestamp = new Date().toISOString();
+    const trip = {
+      id: guestTripId,
+      name: `${tripDetails.destination} - ${tripDetails.duration} days`,
+      destination: tripDetails.destination,
+      duration: tripDetails.duration,
+      season: tripDetails.season,
+      climate: tripDetails.climate,
+      activities: JSON.stringify(tripDetails.activities),
+      accommodation: tripDetails.accommodation,
+      groupSize: tripDetails.groupSize,
+      includesChildren: tripDetails.includesChildren,
+      specialNeeds: JSON.stringify(tripDetails.specialNeeds),
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      userId: null,
+      items: suggestionItems.map((item, index) => ({
+        ...item,
+        id: `${guestTripId}-item-${index}`,
+        aiSuggested: item.aiSuggested ?? true,
+      })),
+      progress: [],
+    };
 
     return NextResponse.json({
       success: true,
@@ -120,7 +211,7 @@ export async function GET() {
       orderBy: {
         createdAt: 'desc',
       },
-      take: 20, // Limit to last 20 trips
+      take: 20,
     });
 
     return NextResponse.json({
