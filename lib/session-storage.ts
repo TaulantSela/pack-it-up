@@ -11,7 +11,12 @@ export type GuestTripSession = {
   trip: {
     id: string;
     name: string;
+    origin?: string | null;
     destination: string;
+    startDate?: string | null;
+    endDate?: string | null;
+    transport?: string | null;
+    weather?: string | null;
     duration: number;
     season: string;
     climate: string;

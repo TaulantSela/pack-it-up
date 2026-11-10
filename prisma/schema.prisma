@@ -27,9 +27,14 @@ model Trip {
   name        String
   origin      String?  // Null for trips created before the field existed
   destination String
+  // Dates, transport and weather are null for trips created before they existed
+  startDate   DateTime? @db.Date
+  endDate     DateTime? @db.Date
+  transport   String?
+  weather     String?  // JSON summary of the forecast or typical weather
   duration    Int
-  season      String
-  climate     String
+  season      String   // Worked out from the dates
+  climate     String   // Worked out from the weather
   activities  String   // JSON string of activities
   accommodation String
   groupSize   Int

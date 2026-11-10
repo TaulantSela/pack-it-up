@@ -5,7 +5,7 @@ import { ComponentPropsWithRef } from 'react';
 import FormField, { BaseFormFieldProps } from './form-field';
 
 // Input component should be used only for the folloring input types
-export type InputType = 'text' | 'email' | 'password' | 'tel' | 'number' | 'file';
+export type InputType = 'text' | 'email' | 'password' | 'tel' | 'number' | 'file' | 'date';
 
 export interface InputProps extends ComponentPropsWithRef<'input'>, BaseFormFieldProps {
   error?: boolean;

@@ -1,16 +1,41 @@
 import { ComponentType } from 'react';
+import { ACCOMMODATIONS, SEASONS, TRANSPORTS } from './trip-options';
 
+export type Season = (typeof SEASONS)[number];
+export type Transport = (typeof TRANSPORTS)[number];
+
+// What the trip form sends
 export interface TripDetails {
   origin: string;
   destination: string;
-  duration: number;
-  season: 'spring' | 'summer' | 'fall' | 'winter';
-  climate: 'tropical' | 'temperate' | 'cold' | 'desert';
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  transport: Transport;
   activities: string[];
-  accommodation: 'hotel' | 'hostel' | 'camping' | 'airbnb' | 'other';
+  accommodation: (typeof ACCOMMODATIONS)[number];
   groupSize: number;
   includesChildren: boolean;
   specialNeeds: string[];
+}
+
+export interface WeatherSummary {
+  place: string;
+  kind: 'forecast' | 'typical';
+  days: number;
+  avgHigh: number;
+  avgLow: number;
+  maxHigh: number;
+  minLow: number;
+  rainyDays: number;
+  snowyDays: number;
+}
+
+// Trip details plus what the server works out from them
+export interface TripContext extends TripDetails {
+  duration: number;
+  season: Season;
+  climate: string;
+  weather: WeatherSummary | null;
 }
 
 export interface PackingItem {
