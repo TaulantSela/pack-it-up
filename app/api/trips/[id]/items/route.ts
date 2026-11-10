@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { packingItemInputSchema } from '@/lib/validation';
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -11,8 +12,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const { id } = await params;
-    const body = await request.json();
-    const { name, category, quantity, notes, essential } = body;
+    const parsed = packingItemInputSchema.safeParse(await request.json());
+
+    if (!parsed.success) {
+      return NextResponse.json({ success: false, error: 'Invalid item' }, { status: 400 });
+    }
+
+    const { name, category, quantity, notes, essential } = parsed.data;
 
     // Verify trip ownership
     const trip = await prisma.trip.findFirst({
@@ -31,9 +37,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       data: {
         name,
         category,
-        quantity: quantity || 1,
+        quantity,
         notes: notes || null,
-        essential: essential || false,
+        essential,
         aiSuggested: false,
         tripId: id,
       },
@@ -60,6 +66,10 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const { id } = await params;
     const { itemId } = await request.json();
 
+    if (typeof itemId !== 'string' || !itemId) {
+      return NextResponse.json({ success: false, error: 'Invalid item' }, { status: 400 });
+    }
+
     // Verify trip ownership
     const trip = await prisma.trip.findFirst({
       where: {
@@ -77,10 +87,11 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
     }
 
-    // Delete the item
-    await prisma.packingItem.delete({
-      where: { id: itemId },
-    });
+    // Delete the item and its checked state, so it no longer counts as packed
+    await prisma.$transaction([
+      prisma.packingProgress.deleteMany({ where: { tripId: id, itemId } }),
+      prisma.packingItem.delete({ where: { id: itemId } }),
+    ]);
 
     return NextResponse.json({
       success: true,

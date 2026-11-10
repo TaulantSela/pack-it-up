@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { progressUpdateSchema } from '@/lib/validation';
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -11,19 +12,30 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const { id } = await params;
-    const body = await request.json();
-    const { itemId, checked } = body;
+    const parsed = progressUpdateSchema.safeParse(await request.json());
 
-    // Verify trip ownership
+    if (!parsed.success) {
+      return NextResponse.json({ success: false, error: 'Invalid progress update' }, { status: 400 });
+    }
+
+    const { itemId, checked } = parsed.data;
+
+    // Verify trip ownership and that the item belongs to the trip
     const trip = await prisma.trip.findFirst({
       where: {
         id,
         userId: userId,
       },
+      include: {
+        items: {
+          where: { id: itemId },
+          select: { id: true },
+        },
+      },
     });
 
-    if (!trip) {
-      return NextResponse.json({ success: false, error: 'Trip not found' }, { status: 404 });
+    if (!trip || trip.items.length === 0) {
+      return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
     }
 
     const progress = await prisma.packingProgress.upsert({

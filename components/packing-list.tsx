@@ -70,6 +70,7 @@ export default function PackingList({
   const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
   const [tempQuantity, setTempQuantity] = useState<number>(1);
   const [hasShownGuestNotice, setHasShownGuestNotice] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const notifyGuestRestriction = () => {
     onRequireAuth?.();
@@ -105,7 +106,6 @@ export default function PackingList({
   // Load progress from database
   useEffect(() => {
     const loadProgress = async () => {
-      console.log('Loading progress for trip:', tripId);
       try {
         const response = await fetch(`/api/trips/${tripId}/progress`);
         if (response.ok) {
@@ -154,7 +154,7 @@ export default function PackingList({
     // Save to database
     try {
       setIsLoading(true);
-      await fetch(`/api/trips/${tripId}/progress`, {
+      const response = await fetch(`/api/trips/${tripId}/progress`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -164,10 +164,23 @@ export default function PackingList({
           checked: !isChecked,
         }),
       });
+
+      if (!response.ok) {
+        throw new Error(`Progress update failed: ${response.status}`);
+      }
     } catch (error) {
       console.error('Error updating progress:', error);
-      // Revert the UI change if the API call failed
-      setCheckedItems(checkedItems);
+      // Revert only this item, other toggles may have happened meanwhile
+      setCheckedItems((previous) => {
+        const reverted = new Set(previous);
+        if (isChecked) {
+          reverted.add(itemId);
+        } else {
+          reverted.delete(itemId);
+        }
+        return reverted;
+      });
+      setActionError('Couldn’t save that change. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -192,7 +205,8 @@ export default function PackingList({
   );
 
   const totalItems = allItems.length;
-  const checkedCount = checkedItems.size;
+  // Count only items that still exist, older trips can have progress for deleted items
+  const checkedCount = allItems.filter((item) => checkedItems.has(item.id)).length;
   const progress = totalItems > 0 ? (checkedCount / totalItems) * 100 : 0;
 
   const handleAddItem = async (category: string) => {
@@ -218,19 +232,21 @@ export default function PackingList({
         }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setAllItems([...allItems, data.item]);
-        // Reset form
-        setNewItemName('');
-        setNewItemQuantity(1);
-        setNewItemEssential(false);
-        setNewItemNotes('');
-        setAddingToCategory(null);
+      if (!response.ok) {
+        throw new Error(`Add item failed: ${response.status}`);
       }
+
+      const data = await response.json();
+      setAllItems([...allItems, data.item]);
+      // Reset form
+      setNewItemName('');
+      setNewItemQuantity(1);
+      setNewItemEssential(false);
+      setNewItemNotes('');
+      setAddingToCategory(null);
     } catch (error) {
       console.error('Error adding item:', error);
-      alert('Failed to add item. Please try again.');
+      setActionError('Failed to add item. Please try again.');
     }
   };
 
@@ -251,16 +267,18 @@ export default function PackingList({
         body: JSON.stringify({ itemId }),
       });
 
-      if (response.ok) {
-        setAllItems(allItems.filter((item) => item.id !== itemId));
-        // Remove from checked items if it was checked
-        const newChecked = new Set(checkedItems);
-        newChecked.delete(itemId);
-        setCheckedItems(newChecked);
+      if (!response.ok) {
+        throw new Error(`Delete item failed: ${response.status}`);
       }
+
+      setAllItems(allItems.filter((item) => item.id !== itemId));
+      // Remove from checked items if it was checked
+      const newChecked = new Set(checkedItems);
+      newChecked.delete(itemId);
+      setCheckedItems(newChecked);
     } catch (error) {
       console.error('Error deleting item:', error);
-      alert('Failed to delete item. Please try again.');
+      setActionError('Failed to delete item. Please try again.');
     }
   };
 
@@ -271,7 +289,7 @@ export default function PackingList({
     }
 
     if (!newCategoryName.trim() || !newCategoryFirstItem.trim()) {
-      alert('Please provide both a category name and first item name.');
+      setActionError('Please provide both a category name and first item name.');
       return;
     }
 
@@ -290,18 +308,20 @@ export default function PackingList({
         }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setAllItems([...allItems, data.item]);
-        // Reset form
-        setNewCategoryName('');
-        setNewCategoryFirstItem('');
-        setNewCategoryQuantity(1);
-        setShowAddCategory(false);
+      if (!response.ok) {
+        throw new Error(`Add category failed: ${response.status}`);
       }
+
+      const data = await response.json();
+      setAllItems([...allItems, data.item]);
+      // Reset form
+      setNewCategoryName('');
+      setNewCategoryFirstItem('');
+      setNewCategoryQuantity(1);
+      setShowAddCategory(false);
     } catch (error) {
       console.error('Error adding category:', error);
-      alert('Failed to add category. Please try again.');
+      setActionError('Failed to add category. Please try again.');
     }
   };
 
@@ -322,13 +342,15 @@ export default function PackingList({
         body: JSON.stringify({ quantity: newQuantity }),
       });
 
-      if (response.ok) {
-        setAllItems(allItems.map((item) => (item.id === itemId ? { ...item, quantity: newQuantity } : item)));
-        setEditingQuantity(null);
+      if (!response.ok) {
+        throw new Error(`Update quantity failed: ${response.status}`);
       }
+
+      setAllItems(allItems.map((item) => (item.id === itemId ? { ...item, quantity: newQuantity } : item)));
+      setEditingQuantity(null);
     } catch (error) {
       console.error('Error updating quantity:', error);
-      alert('Failed to update quantity. Please try again.');
+      setActionError('Failed to update quantity. Please try again.');
     }
   };
 
@@ -354,9 +376,9 @@ export default function PackingList({
     <div className="space-y-6">
       {/* Header with Progress */}
       <div className="card">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Your Packing List</h2>
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-wrap items-center gap-3 print:hidden">
             <label className="flex cursor-pointer items-center space-x-2">
               <input
                 type="checkbox"
@@ -392,10 +414,22 @@ export default function PackingList({
             />
           </div>
         </div>
+
+        {actionError && (
+          <div
+            role="alert"
+            className="flex items-start justify-between gap-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200 print:hidden"
+          >
+            <p>{actionError}</p>
+            <button onClick={() => setActionError(null)} aria-label="Dismiss error" className="shrink-0">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Add Category Button */}
-      <div className="flex justify-center">
+      <div className="flex justify-center print:hidden">
         <button
           onClick={() => {
             if (isGuest) {
@@ -422,7 +456,7 @@ export default function PackingList({
 
       {/* Add Category Form */}
       {showAddCategory && (
-        <div className="card border-primary-300 dark:border-primary-600 bg-primary-50 dark:bg-primary-900/20 border-2 border-dashed">
+        <div className="card border-primary-300 dark:border-primary-600 bg-primary-50 dark:bg-primary-900/20 border-2 border-dashed print:hidden">
           <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Create New Category</h3>
           <div className="space-y-3">
             <div>
@@ -508,7 +542,7 @@ export default function PackingList({
                     }
                     setAddingToCategory(addingToCategory === category ? null : category);
                   }}
-                  className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center space-x-1 text-sm"
+                  className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center space-x-1 text-sm print:hidden"
                 >
                   {addingToCategory === category ? (
                     <>
@@ -630,19 +664,18 @@ export default function PackingList({
                             {item.quantity}x
                           </button>
                         )}
-                        {!item.aiSuggested && (
-                          <button
-                            data-prevent-card-toggle="true"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleDeleteItem(item.id);
-                            }}
-                            className="text-red-600 transition-colors hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                            title="Delete custom item"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
+                        <button
+                          data-prevent-card-toggle="true"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleDeleteItem(item.id);
+                          }}
+                          className="text-red-600 transition-colors hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 print:hidden"
+                          title="Delete item"
+                          aria-label={`Delete ${item.name}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
                   );
@@ -650,7 +683,7 @@ export default function PackingList({
 
                 {/* Add Item Form */}
                 {addingToCategory === category && (
-                  <div className="border-primary-300 dark:border-primary-600 bg-primary-50 dark:bg-primary-900/20 rounded-lg border-2 border-dashed p-4">
+                  <div className="border-primary-300 dark:border-primary-600 bg-primary-50 dark:bg-primary-900/20 rounded-lg border-2 border-dashed p-4 print:hidden">
                     <h4 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">Add Custom Item</h4>
                     <div className="space-y-3">
                       <div>

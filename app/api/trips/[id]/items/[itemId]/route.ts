@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { quantitySchema } from '@/lib/validation';
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -12,7 +13,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const { id, itemId } = await params;
     const body = await request.json();
-    const { quantity } = body;
+    const parsedQuantity = quantitySchema.safeParse(body.quantity);
+
+    if (!parsedQuantity.success) {
+      return NextResponse.json({ success: false, error: 'Invalid quantity' }, { status: 400 });
+    }
+
+    const quantity = parsedQuantity.data;
 
     // Verify trip ownership
     const trip = await prisma.trip.findFirst({

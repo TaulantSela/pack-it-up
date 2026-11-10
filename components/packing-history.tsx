@@ -1,11 +1,13 @@
 'use client';
 
-import { Calendar, Clock, Copy, Eye, History, MapPin, Trash2, Users } from 'lucide-react';
+import { pluralize } from '@/lib/utils';
+import { Calendar, Clock, Copy, Eye, History, MapPin, Trash2, Users, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface Trip {
   id: string;
   name: string;
+  origin?: string | null;
   destination: string;
   duration: number;
   season: string;
@@ -29,18 +31,24 @@ interface PackingHistoryProps {
 
 export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: PackingHistoryProps) {
   const [history, setHistory] = useState<Trip[]>([]);
+  const [historyLimit, setHistoryLimit] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [busyTripId, setBusyTripId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const loadHistory = async () => {
       try {
         const response = await fetch('/api/trips');
-        if (response.ok) {
-          const data = await response.json();
-          setHistory(data.trips);
+        if (!response.ok) {
+          throw new Error(`Load history failed: ${response.status}`);
         }
+        const data = await response.json();
+        setHistory(data.trips);
+        setHistoryLimit(data.limit ?? null);
       } catch (error) {
         console.error('Error loading history:', error);
+        setErrorMessage('Couldn’t load your history. Please try again.');
       } finally {
         setIsLoading(false);
       }
@@ -49,12 +57,19 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
     loadHistory();
   }, []);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (trip: Trip) => {
+    if (!confirm(`Delete "${trip.name}"? This can't be undone.`)) return;
+
+    setBusyTripId(trip.id);
+    setErrorMessage(null);
     try {
-      await onDeleteTrip(id);
-      setHistory((prev) => prev.filter((list) => list.id !== id));
+      await onDeleteTrip(trip.id);
+      setHistory((prev) => prev.filter((list) => list.id !== trip.id));
     } catch (error) {
       console.error('Error deleting trip:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to delete trip. Please try again.');
+    } finally {
+      setBusyTripId(null);
     }
   };
 
@@ -64,34 +79,23 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
   };
 
   const handleDuplicate = async (trip: Trip) => {
+    setBusyTripId(trip.id);
+    setErrorMessage(null);
     try {
-      // Create a new trip with the same details
-      const response = await fetch('/api/trips', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tripDetails: {
-            destination: trip.destination,
-            duration: trip.duration,
-            season: trip.season,
-            climate: trip.climate,
-            activities: JSON.parse(trip.activities),
-            accommodation: trip.accommodation,
-            groupSize: trip.groupSize,
-            includesChildren: trip.includesChildren,
-            specialNeeds: JSON.parse(trip.specialNeeds),
-          },
-        }),
-      });
+      // Copies the list as it is, instead of generating a new one
+      const response = await fetch(`/api/trips/${trip.id}/duplicate`, { method: 'POST' });
 
-      if (response.ok) {
-        const data = await response.json();
-        setHistory((prev) => [data.trip, ...prev]);
+      if (!response.ok) {
+        throw new Error(`Duplicate failed: ${response.status}`);
       }
+
+      const data = await response.json();
+      setHistory((prev) => [data.trip, ...prev]);
     } catch (error) {
       console.error('Error duplicating trip:', error);
+      setErrorMessage('Failed to duplicate the list. Please try again.');
+    } finally {
+      setBusyTripId(null);
     }
   };
 
@@ -136,6 +140,17 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
         </div>
 
         <div className="max-h-[calc(90vh-120px)] overflow-y-auto p-6">
+          {errorMessage && (
+            <div
+              role="alert"
+              className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200"
+            >
+              <p>{errorMessage}</p>
+              <button onClick={() => setErrorMessage(null)} aria-label="Dismiss error" className="shrink-0">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           {history.length === 0 ? (
             <div className="py-12 text-center">
               <History className="mx-auto mb-4 h-16 w-16 text-gray-300 dark:text-gray-600" />
@@ -157,16 +172,21 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
 
                       <div className="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">
                         <div className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-200">
-                          <MapPin className="h-4 w-4" />
-                          <span>{trip.destination}</span>
+                          <MapPin className="h-4 w-4 shrink-0" />
+                          <span>
+                            {trip.destination}
+                            {trip.origin && (
+                              <span className="text-gray-500 dark:text-gray-400"> · from {trip.origin}</span>
+                            )}
+                          </span>
                         </div>
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
+                        <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
                           <Calendar className="h-4 w-4" />
-                          <span>{trip.duration} days</span>
+                          <span>{pluralize(trip.duration, 'day')}</span>
                         </div>
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
+                        <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
                           <Users className="h-4 w-4" />
-                          <span>{trip.groupSize} people</span>
+                          <span>{pluralize(trip.groupSize, 'person', 'people')}</span>
                         </div>
                       </div>
 
@@ -177,7 +197,7 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
                         </div>
                         <div className="flex items-center space-x-1">
                           <span>•</span>
-                          <span>{trip.items.length} items</span>
+                          <span>{pluralize(trip.items.length, 'item')}</span>
                         </div>
                       </div>
                     </div>
@@ -192,15 +212,19 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
                       </button>
                       <button
                         onClick={() => handleDuplicate(trip)}
-                        className="btn-secondary px-3 py-1 text-sm"
+                        disabled={busyTripId !== null}
+                        className="btn-secondary px-3 py-1 text-sm disabled:opacity-50"
                         title="Duplicate this list"
+                        aria-label={`Duplicate ${trip.name}`}
                       >
                         <Copy className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => handleDelete(trip.id)}
-                        className="px-3 py-1 text-sm text-red-600 transition-colors hover:text-red-800"
+                        onClick={() => handleDelete(trip)}
+                        disabled={busyTripId !== null}
+                        className="px-3 py-1 text-sm text-red-600 transition-colors hover:text-red-800 disabled:opacity-50"
                         title="Delete this list"
+                        aria-label={`Delete ${trip.name}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -208,6 +232,11 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
                   </div>
                 </div>
               ))}
+              {historyLimit !== null && history.length >= historyLimit && (
+                <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+                  Showing your {historyLimit} most recent lists.
+                </p>
+              )}
             </div>
           )}
         </div>
