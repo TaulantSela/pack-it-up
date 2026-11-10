@@ -646,11 +646,6 @@ export default function PackingList({
                             {item.name}
                           </span>
                           {item.essential && <Star className="h-4 w-4 fill-current text-yellow-500" />}
-                          {item.aiSuggested && (
-                            <span className="rounded bg-blue-100 px-2 py-1 text-xs text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                              AI
-                            </span>
-                          )}
                         </div>
                         {item.notes && <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{item.notes}</p>}
                       </div>
