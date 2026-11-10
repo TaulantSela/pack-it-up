@@ -4,7 +4,8 @@ A modern, intelligent packing list app built with Next.js that generates persona
 
 ## Features
 
-- **Smart Recommendations**: AI-powered packing suggestions (Google Gemini) based on where you live, your destination, climate, activities, and travel preferences, with a rule-based fallback when the AI is unavailable
+- **Smart Recommendations**: AI-powered packing suggestions (Google Gemini) based on where you live, your destination, the weather for your dates, how you travel, and your activities, with a rule-based fallback when the AI is unavailable
+- **Real Weather**: The forecast for trips in the next 16 days, or the typical weather for those dates from the last three years ([Open-Meteo](https://open-meteo.com/))
 - **Interactive Checklist**: Check off items as you pack with real-time progress tracking
 - **Categorized Items**: Items organized by category (clothing, toiletries, electronics, etc.)
 - **Essential Items Highlighting**: Important items are clearly marked
@@ -14,8 +15,8 @@ A modern, intelligent packing list app built with Next.js that generates persona
 
 ## How It Works
 
-1. **Enter Trip Details**: Fill out the form with your destination, duration, season, climate, and activities
-2. **Add Special Requirements**: Include any special needs like medical conditions or dietary restrictions
+1. **Enter Trip Details**: Fill out the form with your home city, destination, dates, how you're getting there, and activities
+2. **Add Anything Else**: Mention things like a wedding, dietary needs, or a work laptop
 3. **Generate List**: Get a personalized packing list tailored to your trip
 4. **Track Progress**: Check off items as you pack and see your progress
 5. **Export/Print**: Save or print your list for offline use
@@ -24,14 +25,13 @@ A modern, intelligent packing list app built with Next.js that generates persona
 
 - **Home city**: Where you live, which decides passport and visa reminders, plug adapters, and currency
 - **Destination**: Where you're traveling
-- **Duration**: How many days you'll be away
-- **Season**: Spring, Summer, Fall, or Winter
-- **Climate**: Tropical, Temperate, Cold, or Desert
+- **Dates**: Start and end date. The length, the season (flipped for the southern hemisphere) and the weather come from these
+- **Getting there**: Flight with carry-on only, flight with a checked bag, car, or train/bus
 - **Activities**: Hiking, Beach, Skiing, Business, Camping, etc.
 - **Accommodation**: Hotel, Hostel, Camping, Airbnb, or Other
 - **Group Size**: Number of people traveling
 - **Children**: Whether you're traveling with children
-- **Special Needs**: Medical conditions, dietary restrictions, accessibility needs
+- **Anything else**: Free-text notes such as a wedding, medical or dietary needs, or a work laptop
 
 ## Smart Features
 
@@ -43,11 +43,18 @@ A modern, intelligent packing list app built with Next.js that generates persona
 - **Business**: Formal attire, laptop, business cards
 - **Camping**: Tent, sleeping bag, camping stove
 
-### Climate-Specific Items
+### Weather-Based Items
 
-- **Tropical**: Lightweight clothing, sunscreen, insect repellent
-- **Cold**: Thermal underwear, winter hat, gloves
-- **Desert**: Long-sleeved shirts, lip balm with SPF
+- **Cold**: Winter coat, thermal layers, hat and gloves
+- **Warm or hot**: Sunscreen, sunglasses, light clothing, a water bottle
+- **Rain or snow**: Umbrella or rain jacket, waterproof boots
+- **Cool evenings**: A light jacket, with the expected evening temperature
+
+### Travel-Based Items
+
+- **Carry-on only**: 100 ml liquids and a clear toiletry bag, fewer clothes
+- **Car**: Driving license, phone mount, snacks for the drive
+- **Train or bus**: Tickets and snacks for the journey
 
 ### Duration-Based Quantities
 
@@ -99,6 +106,7 @@ npm start
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
 - **AI**: Vercel AI SDK with Google Gemini (free tier), validated with Zod
+- **Weather**: Open-Meteo (free for non-commercial use, no key)
 - **Auth**: Clerk, with a guest mode
 - **Database**: PostgreSQL (Neon) via Prisma
 - **Icons**: Lucide React
@@ -120,6 +128,9 @@ pack-it-up/
 ├── lib/
 │   ├── ai.ts                # Gemini prompt and rule-based fallback
 │   ├── trip-options.ts      # Activities, seasons, climates, categories
+│   ├── weather.ts           # Open-Meteo geocoding, forecast and typical weather
+│   ├── trip-context.ts      # Duration, season and weather from the dates
+│   ├── dates.ts             # Calendar date helpers
 │   ├── validation.ts        # Zod schemas for API input
 │   └── rate-limit.ts        # Guest rate limiting
 └── prisma/schema.prisma     # Database schema
