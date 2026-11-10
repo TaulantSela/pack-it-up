@@ -101,3 +101,39 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ success: false, error: 'Failed to fetch progress' }, { status: 500 });
   }
 }
+
+// Unchecks every item, so a list can be reused for a repeat trip
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    // Verify trip ownership
+    const trip = await prisma.trip.findFirst({
+      where: {
+        id,
+        userId: userId,
+      },
+    });
+
+    if (!trip) {
+      return NextResponse.json({ success: false, error: 'Trip not found' }, { status: 404 });
+    }
+
+    await prisma.packingProgress.deleteMany({
+      where: { tripId: id },
+    });
+
+    return NextResponse.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error('Error resetting progress:', error);
+    return NextResponse.json({ success: false, error: 'Failed to reset progress' }, { status: 500 });
+  }
+}

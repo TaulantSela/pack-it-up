@@ -109,7 +109,7 @@ npm start
 ```
 pack-it-up/
 ├── app/
-│   ├── api/trips/           # Trip, item, progress and duplicate endpoints
+│   ├── api/trips/           # Trip, item and progress endpoints
 │   ├── globals.css          # Global and print styles
 │   ├── layout.tsx           # Root layout
 │   └── page.tsx             # Main page component

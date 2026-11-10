@@ -10,6 +10,7 @@ import {
   Package,
   Plus,
   Printer,
+  RotateCcw,
   Shirt,
   Star,
   Trash2,
@@ -26,6 +27,7 @@ interface PackingListProps {
   onRequireAuth?: () => void;
   initialCheckedIds?: string[];
   onGuestToggleItem?: (itemId: string, checked: boolean) => void;
+  onGuestResetProgress?: () => void;
 }
 
 const categoryIcons = {
@@ -53,6 +55,7 @@ export default function PackingList({
   onRequireAuth,
   initialCheckedIds,
   onGuestToggleItem,
+  onGuestResetProgress,
 }: PackingListProps) {
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const [showOnlyEssential, setShowOnlyEssential] = useState(false);
@@ -354,6 +357,32 @@ export default function PackingList({
     }
   };
 
+  const handleUncheckAll = async () => {
+    if (!confirm(`Uncheck all ${checkedCount} packed items?`)) return;
+
+    if (isGuest) {
+      setCheckedItems(new Set());
+      onGuestResetProgress?.();
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/trips/${tripId}/progress`, { method: 'DELETE' });
+
+      if (!response.ok) {
+        throw new Error(`Reset progress failed: ${response.status}`);
+      }
+
+      setCheckedItems(new Set());
+    } catch (error) {
+      console.error('Error resetting progress:', error);
+      setActionError('Couldn’t uncheck the items. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -388,6 +417,16 @@ export default function PackingList({
               />
               <span className="text-sm text-gray-800 dark:text-gray-100">Show essential only</span>
             </label>
+            {checkedCount > 0 && (
+              <button
+                onClick={handleUncheckAll}
+                disabled={isLoading && !isGuest}
+                className="btn-secondary flex items-center space-x-2 disabled:opacity-50"
+              >
+                <RotateCcw className="h-4 w-4" />
+                <span>Uncheck all</span>
+              </button>
+            )}
             <button onClick={handleExport} className="btn-secondary flex items-center space-x-2">
               <Download className="h-4 w-4" />
               <span>Export</span>

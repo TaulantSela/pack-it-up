@@ -154,6 +154,26 @@ export default function Home() {
     });
   };
 
+  const handleGuestResetProgress = () => {
+    const tripDetailsForSession = guestTripDetails ?? loadGuestTripSession()?.tripDetails ?? null;
+
+    setCurrentTrip((previous) => {
+      if (!previous) {
+        return previous;
+      }
+
+      const nextTrip = { ...previous, progress: [] };
+      if (tripDetailsForSession) {
+        saveGuestTripSession({
+          trip: { ...nextTrip, userId: nextTrip.userId ?? null },
+          tripDetails: tripDetailsForSession,
+          savedAt: new Date().toISOString(),
+        });
+      }
+      return nextTrip;
+    });
+  };
+
   useEffect(() => {
     if (isSignedIn) {
       setAuthPromptVisible(false);
@@ -425,6 +445,7 @@ export default function Home() {
                   currentTrip.progress?.filter((entry) => entry.checked).map((entry) => entry.itemId) ?? []
                 }
                 onGuestToggleItem={isGuest ? handleGuestToggleItem : undefined}
+                onGuestResetProgress={isGuest ? handleGuestResetProgress : undefined}
               />
               {isGuest && (
                 <div className="border-primary-300 dark:border-primary-600 dark:bg-primary-900/10 text-primary-700 dark:text-primary-200 card bg-primary-50 border text-sm print:hidden">

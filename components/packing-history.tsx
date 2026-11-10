@@ -1,7 +1,7 @@
 'use client';
 
 import { pluralize } from '@/lib/utils';
-import { Calendar, Clock, Copy, Eye, History, MapPin, Trash2, Users, X } from 'lucide-react';
+import { Calendar, Clock, Eye, History, MapPin, Trash2, Users, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface Trip {
@@ -76,27 +76,6 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
   const handleLoad = (trip: Trip) => {
     onLoadList(trip);
     onClose();
-  };
-
-  const handleDuplicate = async (trip: Trip) => {
-    setBusyTripId(trip.id);
-    setErrorMessage(null);
-    try {
-      // Copies the list as it is, instead of generating a new one
-      const response = await fetch(`/api/trips/${trip.id}/duplicate`, { method: 'POST' });
-
-      if (!response.ok) {
-        throw new Error(`Duplicate failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setHistory((prev) => [data.trip, ...prev]);
-    } catch (error) {
-      console.error('Error duplicating trip:', error);
-      setErrorMessage('Failed to duplicate the list. Please try again.');
-    } finally {
-      setBusyTripId(null);
-    }
   };
 
   const formatDate = (dateString: string) => {
@@ -205,19 +184,11 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
                     <div className="ml-4 flex items-center space-x-2">
                       <button
                         onClick={() => handleLoad(trip)}
-                        className="btn-primary px-3 py-1 text-sm"
-                        title="Load this list"
+                        className="btn-primary flex items-center gap-1.5 px-3 py-1 text-sm"
+                        title="Open this list"
                       >
                         <Eye className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDuplicate(trip)}
-                        disabled={busyTripId !== null}
-                        className="btn-secondary px-3 py-1 text-sm disabled:opacity-50"
-                        title="Duplicate this list"
-                        aria-label={`Duplicate ${trip.name}`}
-                      >
-                        <Copy className="h-4 w-4" />
+                        <span>Open</span>
                       </button>
                       <button
                         onClick={() => handleDelete(trip)}
