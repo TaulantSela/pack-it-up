@@ -106,22 +106,23 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="mx-4 max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-xl dark:bg-gray-800">
-        <div className="border-b border-gray-200 p-6 dark:border-gray-700">
+        <div className="border-b border-gray-200 p-4 sm:p-6 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <History className="text-primary-600 dark:text-primary-400 h-6 w-6" />
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Packing List History</h2>
+              <h2 className="text-xl font-semibold text-gray-900 sm:text-2xl dark:text-white">Packing List History</h2>
             </div>
             <button
               onClick={onClose}
+              aria-label="Close history"
               className="text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
             >
-              ✕
+              <X className="h-5 w-5" />
             </button>
           </div>
         </div>
 
-        <div className="max-h-[calc(90vh-120px)] overflow-y-auto p-6">
+        <div className="max-h-[calc(90vh-120px)] overflow-y-auto p-4 sm:p-6">
           {errorMessage && (
             <div
               role="alert"
@@ -148,8 +149,8 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
                   key={trip.id}
                   className="rounded-lg border border-gray-200 p-4 transition-colors hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
                       <h3 className="mb-2 font-semibold text-gray-900 dark:text-white">{trip.name}</h3>
 
                       <div className="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -163,7 +164,7 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
                           </span>
                         </div>
                         <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
-                          <Calendar className="h-4 w-4" />
+                          <Calendar className="h-4 w-4 shrink-0" />
                           <span>
                             {trip.startDate && trip.endDate
                               ? `${formatDateRange(trip.startDate, trip.endDate)} · ${pluralize(trip.duration, 'day')}`
@@ -171,14 +172,14 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
                           </span>
                         </div>
                         <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
-                          <Users className="h-4 w-4" />
+                          <Users className="h-4 w-4 shrink-0" />
                           <span>{pluralize(trip.groupSize, 'person', 'people')}</span>
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
                         <div className="flex items-center space-x-1">
-                          <Clock className="h-3 w-3" />
+                          <Clock className="h-3 w-3 shrink-0" />
                           <span>Created: {formatDate(trip.createdAt)}</span>
                         </div>
                         <div className="flex items-center space-x-1">
@@ -188,7 +189,7 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
                       </div>
                     </div>
 
-                    <div className="ml-4 flex items-center space-x-2">
+                    <div className="flex shrink-0 items-center space-x-2 sm:ml-4">
                       <button
                         onClick={() => handleLoad(trip)}
                         className="btn-primary flex items-center gap-1.5 px-3 py-1 text-sm"

@@ -1,6 +1,7 @@
 'use client';
 
 import { PackingItem } from '@/lib/types';
+import { pluralize } from '@/lib/utils';
 import {
   CheckCircle,
   Circle,
@@ -358,7 +359,7 @@ export default function PackingList({
   };
 
   const handleUncheckAll = async () => {
-    if (!confirm(`Uncheck all ${checkedCount} packed items?`)) return;
+    if (!confirm(`Uncheck ${pluralize(checkedCount, 'packed item')}?`)) return;
 
     if (isGuest) {
       setCheckedItems(new Set());
@@ -442,7 +443,7 @@ export default function PackingList({
         <div className="mb-4">
           <div className="mb-2 flex justify-between text-sm text-gray-700 dark:text-gray-200">
             <span>
-              Progress: {checkedCount} of {totalItems} items packed
+              Progress: {checkedCount} of {pluralize(totalItems, 'item')} packed
             </span>
             <span>{Math.round(progress)}%</span>
           </div>
@@ -570,7 +571,7 @@ export default function PackingList({
                   <Icon className="text-primary-600 dark:text-primary-400 h-5 w-5" />
                   <h3 className="text-lg font-semibold text-gray-900 capitalize dark:text-white">{category}</h3>
                   <span className={`rounded-full px-2 py-1 text-xs font-medium ${colorClass}`}>
-                    {categoryItems.length} items
+                    {pluralize(categoryItems.length, 'item')}
                   </span>
                 </div>
                 <button
@@ -629,6 +630,8 @@ export default function PackingList({
                           toggleItem(item.id);
                         }}
                         disabled={isLoading && !isGuest}
+                        aria-label={`Packed ${item.name}`}
+                        aria-pressed={isChecked}
                         className="flex-shrink-0 disabled:opacity-50"
                       >
                         {isChecked ? (
