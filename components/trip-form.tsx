@@ -5,9 +5,18 @@ import Checkbox from '@/components/ui/Checkbox';
 import FormField from '@/components/ui/form-field';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
-import { ACCOMMODATIONS, ACTIVITIES, CLIMATES, MAX_DURATION_DAYS, MAX_GROUP_SIZE, SEASONS } from '@/lib/trip-options';
+import { tripLength } from '@/lib/dates';
+import {
+  ACCOMMODATIONS,
+  ACTIVITIES,
+  MAX_DURATION_DAYS,
+  MAX_GROUP_SIZE,
+  TRANSPORT_LABELS,
+  TRANSPORTS,
+} from '@/lib/trip-options';
 import { TripDetails } from '@/lib/types';
-import { AlertCircle, Baby, Calendar, Cloud, Home, MapPin, Navigation, Plane, Users } from 'lucide-react';
+import { pluralize } from '@/lib/utils';
+import { Baby, Calendar, Car, Home, MapPin, MessageSquare, Navigation, Plane, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface TripFormProps {
@@ -19,6 +28,11 @@ interface TripFormProps {
 
 const ORIGIN_STORAGE_KEY = 'pack-it-up-origin';
 
+const transportOptions = TRANSPORTS.map((value) => ({ value, label: TRANSPORT_LABELS[value] }));
+
+// The date inputs work in the traveler's own time zone
+const localToday = () => new Date().toLocaleDateString('en-CA');
+
 const parseWholeNumber = (value: string) => {
   const parsed = Number.parseInt(value, 10);
   return Number.isNaN(parsed) ? undefined : parsed;
@@ -28,9 +42,8 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false, disable
   const [formData, setFormData] = useState<Partial<TripDetails>>({
     origin: '',
     destination: '',
-    duration: 1,
-    season: 'summer',
-    climate: 'temperate',
+    startDate: '',
+    endDate: '',
     activities: [],
     accommodation: 'hotel',
     groupSize: 1,
@@ -52,17 +65,30 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false, disable
     }
   }, []);
 
+  const datesValid = Boolean(formData.startDate && formData.endDate && formData.endDate >= formData.startDate);
+  const days = datesValid ? tripLength(formData.startDate!, formData.endDate!) : null;
+
   const missingFields = [
     !formData.origin?.trim() && 'your home city',
     !formData.destination?.trim() && 'a destination',
-    !formData.duration && 'the number of days',
+    !datesValid && 'your travel dates',
+    !formData.transport && 'how you’re getting there',
     !formData.groupSize && 'the group size',
     !formData.activities?.length && 'at least one activity',
   ].filter(Boolean) as string[];
 
+  const handleStartDateChange = (startDate: string) => {
+    // Keep the end date on or after the start date
+    setFormData((prev) => ({
+      ...prev,
+      startDate,
+      endDate: !prev.endDate || prev.endDate < startDate ? startDate : prev.endDate,
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (missingFields.length || disabled) {
+    if (missingFields.length || disabled || (days !== null && days > MAX_DURATION_DAYS)) {
       return;
     }
     try {
@@ -138,12 +164,39 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false, disable
         />
         <Input
           icon={{ name: Calendar }}
-          label={{ name: 'Duration (days)' }}
-          type="number"
-          min="1"
-          max={MAX_DURATION_DAYS}
-          value={formData.duration ?? ''}
-          onChange={(e) => setFormData((prev) => ({ ...prev, duration: parseWholeNumber(e.target.value) }))}
+          label={{ name: 'Start date' }}
+          type="date"
+          min={localToday()}
+          value={formData.startDate ?? ''}
+          onChange={(e) => handleStartDateChange(e.target.value)}
+          required
+        />
+        <div>
+          <Input
+            icon={{ name: Calendar }}
+            label={{ name: 'End date' }}
+            type="date"
+            min={formData.startDate || localToday()}
+            value={formData.endDate ?? ''}
+            onChange={(e) => setFormData((prev) => ({ ...prev, endDate: e.target.value }))}
+            aria-describedby="dates-hint"
+            required
+          />
+          <p id="dates-hint" className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+            {days !== null
+              ? `${pluralize(days, 'day')}. We check the forecast, or the typical weather for later dates.`
+              : 'We check the forecast, or the typical weather for later dates.'}
+          </p>
+        </div>
+        <Select
+          icon={{ name: Car }}
+          label={{ name: 'Getting there' }}
+          value={formData.transport ?? ''}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, transport: (e.target.value || undefined) as TripDetails['transport'] }))
+          }
+          options={transportOptions}
+          placeholder="Choose how you travel"
           required
         />
         <Input
@@ -154,22 +207,6 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false, disable
           max={MAX_GROUP_SIZE}
           value={formData.groupSize ?? ''}
           onChange={(e) => setFormData((prev) => ({ ...prev, groupSize: parseWholeNumber(e.target.value) }))}
-          required
-        />
-        <Select
-          icon={{ name: Cloud }}
-          label={{ name: 'Season' }}
-          value={formData.season}
-          onChange={(e) => setFormData((prev) => ({ ...prev, season: e.target.value as TripDetails['season'] }))}
-          options={[...SEASONS]}
-          required
-        />
-        <Select
-          icon={{ name: Cloud }}
-          label={{ name: 'Climate' }}
-          value={formData.climate}
-          onChange={(e) => setFormData((prev) => ({ ...prev, climate: e.target.value as TripDetails['climate'] }))}
-          options={[...CLIMATES]}
           required
         />
         <Select
@@ -209,16 +246,17 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false, disable
         />
       </div>
 
-      {/* Special Needs */}
+      {/* Anything else */}
 
       <div>
-        <FormField icon={{ name: AlertCircle }} label={{ name: 'Special Needs (optional)' }}>
+        <FormField icon={{ name: MessageSquare }} label={{ name: 'Anything else? (optional)' }}>
           <div className="mb-3 flex space-x-2">
             <Input
               value={specialNeed}
               onChange={(e) => setSpecialNeed(e.target.value)}
               className="flex-1"
-              placeholder="e.g., medical conditions, dietary restrictions"
+              placeholder="e.g., wedding on day 2, gluten-free, work laptop"
+              maxLength={150}
               onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleSpecialNeedAdd())}
               withFormField={false}
             />

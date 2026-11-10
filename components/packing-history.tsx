@@ -1,5 +1,6 @@
 'use client';
 
+import { formatDateRange } from '@/lib/dates';
 import { pluralize } from '@/lib/utils';
 import { Calendar, Clock, Eye, History, MapPin, Trash2, Users, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -9,6 +10,8 @@ interface Trip {
   name: string;
   origin?: string | null;
   destination: string;
+  startDate?: string | null;
+  endDate?: string | null;
   duration: number;
   season: string;
   climate: string;
@@ -161,7 +164,11 @@ export default function PackingHistory({ onLoadList, onDeleteTrip, onClose }: Pa
                         </div>
                         <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
                           <Calendar className="h-4 w-4" />
-                          <span>{pluralize(trip.duration, 'day')}</span>
+                          <span>
+                            {trip.startDate && trip.endDate
+                              ? `${formatDateRange(trip.startDate, trip.endDate)} · ${pluralize(trip.duration, 'day')}`
+                              : pluralize(trip.duration, 'day')}
+                          </span>
                         </div>
                         <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
                           <Users className="h-4 w-4" />

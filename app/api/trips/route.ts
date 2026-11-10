@@ -1,6 +1,8 @@
 import { generatePackingSuggestions, SuggestionSource } from '@/lib/ai';
+import { parseDate } from '@/lib/dates';
 import { prisma } from '@/lib/db';
 import { getClientIp, isRateLimited } from '@/lib/rate-limit';
+import { buildTripContext } from '@/lib/trip-context';
 import { pluralize } from '@/lib/utils';
 import { guestTripMigrationSchema, tripDetailsSchema } from '@/lib/validation';
 import { auth, currentUser } from '@clerk/nextjs/server';
@@ -58,9 +60,7 @@ export async function POST(request: NextRequest) {
       aiSuggested?: boolean;
     }[];
 
-    if (migrateGuestTrip) {
-      suggestionItems = migrateGuestTrip.items;
-    } else {
+    if (!migrateGuestTrip) {
       const limited = userId
         ? (await prisma.trip.count({ where: { userId, createdAt: { gte: new Date(Date.now() - HOUR_MS) } } })) >=
           USER_LISTS_PER_HOUR
@@ -69,19 +69,30 @@ export async function POST(request: NextRequest) {
       if (limited) {
         return rateLimitedResponse();
       }
+    }
 
-      const suggestions = await generatePackingSuggestions(tripDetails);
+    // Duration, season and weather come from the dates and destination
+    const tripContext = await buildTripContext(tripDetails);
+
+    if (migrateGuestTrip) {
+      suggestionItems = migrateGuestTrip.items;
+    } else {
+      const suggestions = await generatePackingSuggestions(tripContext);
       source = suggestions.source;
       suggestionItems = suggestions.items.map((item) => ({ ...item, id: randomUUID() }));
     }
 
     const tripData = {
-      name: `${tripDetails.destination} - ${pluralize(tripDetails.duration, 'day')}`,
+      name: `${tripDetails.destination} - ${pluralize(tripContext.duration, 'day')}`,
       origin: tripDetails.origin,
       destination: tripDetails.destination,
-      duration: tripDetails.duration,
-      season: tripDetails.season,
-      climate: tripDetails.climate,
+      startDate: parseDate(tripDetails.startDate),
+      endDate: parseDate(tripDetails.endDate),
+      transport: tripDetails.transport,
+      weather: tripContext.weather ? JSON.stringify(tripContext.weather) : null,
+      duration: tripContext.duration,
+      season: tripContext.season,
+      climate: tripContext.climate,
       activities: JSON.stringify(tripDetails.activities),
       accommodation: tripDetails.accommodation,
       groupSize: tripDetails.groupSize,

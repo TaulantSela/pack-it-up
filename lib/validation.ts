@@ -1,26 +1,41 @@
 import { z } from 'zod';
+import { addDays, todayDateString, tripLength } from './dates';
 import {
   ACCOMMODATIONS,
   ACTIVITIES,
-  CLIMATES,
+  MAX_DAYS_AHEAD,
   MAX_DURATION_DAYS,
   MAX_GROUP_SIZE,
   MAX_QUANTITY,
-  SEASONS,
+  TRANSPORTS,
 } from './trip-options';
 
-export const tripDetailsSchema = z.object({
-  origin: z.string().trim().min(1).max(100),
-  destination: z.string().trim().min(1).max(100),
-  duration: z.number().int().min(1).max(MAX_DURATION_DAYS),
-  season: z.enum(SEASONS),
-  climate: z.enum(CLIMATES),
-  activities: z.array(z.enum(ACTIVITIES)).min(1).max(ACTIVITIES.length),
-  accommodation: z.enum(ACCOMMODATIONS),
-  groupSize: z.number().int().min(1).max(MAX_GROUP_SIZE),
-  includesChildren: z.boolean(),
-  specialNeeds: z.array(z.string().trim().min(1).max(100)).max(10),
-});
+const dateString = z.iso.date();
+
+export const tripDetailsSchema = z
+  .object({
+    origin: z.string().trim().min(1).max(100),
+    destination: z.string().trim().min(1).max(100),
+    startDate: dateString,
+    endDate: dateString,
+    transport: z.enum(TRANSPORTS),
+    activities: z.array(z.enum(ACTIVITIES)).min(1).max(ACTIVITIES.length),
+    accommodation: z.enum(ACCOMMODATIONS),
+    groupSize: z.number().int().min(1).max(MAX_GROUP_SIZE),
+    includesChildren: z.boolean(),
+    specialNeeds: z.array(z.string().trim().min(1).max(150)).max(10),
+  })
+  .refine((trip) => trip.endDate >= trip.startDate, { message: 'The trip ends before it starts', path: ['endDate'] })
+  .refine((trip) => tripLength(trip.startDate, trip.endDate) <= MAX_DURATION_DAYS, {
+    message: 'Trips can be up to a year long',
+    path: ['endDate'],
+  })
+  // Allow yesterday so time zones ahead of UTC can still pick today
+  .refine(
+    (trip) =>
+      trip.startDate >= addDays(todayDateString(), -1) && trip.startDate <= addDays(todayDateString(), MAX_DAYS_AHEAD),
+    { message: 'Pick a start date between today and two years from now', path: ['startDate'] },
+  );
 
 export const quantitySchema = z.number().int().min(1).max(MAX_QUANTITY);
 

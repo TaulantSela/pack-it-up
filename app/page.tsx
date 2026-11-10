@@ -4,11 +4,14 @@ import PackingHistory from '@/components/packing-history';
 import PackingList from '@/components/packing-list';
 import { ThemeToggle } from '@/components/theme-toggle';
 import TripForm from '@/components/trip-form';
+import { formatDateRange } from '@/lib/dates';
 import { clearGuestTripSession, loadGuestTripSession, saveGuestTripSession } from '@/lib/session-storage';
-import { PackingItem, TripDetails } from '@/lib/types';
+import { TRANSPORT_LABELS } from '@/lib/trip-options';
+import { PackingItem, Transport, TripDetails, WeatherSummary } from '@/lib/types';
 import { pluralize } from '@/lib/utils';
+import { describeWeather } from '@/lib/weather';
 import { SignInButton, SignUpButton, UserButton, useUser } from '@clerk/nextjs';
-import { Calendar, History, Info, Luggage, MapPin, Users, X } from 'lucide-react';
+import { Calendar, CloudSun, History, Info, Luggage, MapPin, Users, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 interface Trip {
@@ -16,6 +19,10 @@ interface Trip {
   name: string;
   origin?: string | null;
   destination: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  transport?: string | null;
+  weather?: string | null;
   duration: number;
   season: string;
   climate: string;
@@ -30,6 +37,15 @@ interface Trip {
   progress?: { itemId: string; checked: boolean }[];
   userId?: string | null;
   source?: 'ai' | 'fallback';
+}
+
+function parseWeather(value?: string | null): WeatherSummary | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as WeatherSummary;
+  } catch {
+    return null;
+  }
 }
 
 export default function Home() {
@@ -273,6 +289,7 @@ export default function Home() {
   }, [isSignedIn, isLoaded]);
 
   const isGuest = !isSignedIn;
+  const weather = parseWeather(currentTrip?.weather);
 
   const handleOpenHistory = () => {
     if (!isSignedIn) {
@@ -408,20 +425,60 @@ export default function Home() {
                   <div className="flex items-center space-x-2">
                     <Calendar className="text-primary-600 dark:text-primary-400 h-5 w-5 shrink-0" />
                     <span className="text-gray-800 dark:text-gray-100">
-                      <strong>Duration:</strong> {pluralize(currentTrip.duration, 'day')}
+                      {currentTrip.startDate && currentTrip.endDate ? (
+                        <>
+                          <strong>Dates:</strong> {formatDateRange(currentTrip.startDate, currentTrip.endDate)}
+                          <span className="block text-sm text-gray-600 dark:text-gray-300">
+                            {pluralize(currentTrip.duration, 'day')}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <strong>Duration:</strong> {pluralize(currentTrip.duration, 'day')}
+                        </>
+                      )}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Users className="text-primary-600 dark:text-primary-400 h-5 w-5 shrink-0" />
                     <span className="text-gray-800 dark:text-gray-100">
                       <strong>Group Size:</strong> {pluralize(currentTrip.groupSize, 'person', 'people')}
+                      {currentTrip.transport && (
+                        <span className="block text-sm text-gray-600 dark:text-gray-300">
+                          {TRANSPORT_LABELS[currentTrip.transport as Transport] ?? currentTrip.transport}
+                        </span>
+                      )}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Luggage className="text-primary-600 dark:text-primary-400 h-5 w-5 shrink-0" />
-                    <span className="text-gray-800 capitalize dark:text-gray-100">
-                      <strong>Climate:</strong> {currentTrip.climate}
-                    </span>
+                    <CloudSun className="text-primary-600 dark:text-primary-400 h-5 w-5 shrink-0" />
+                    {weather ? (
+                      <span className="text-gray-800 dark:text-gray-100">
+                        <strong>Weather:</strong> {describeWeather(weather)}
+                        <span className="block text-sm text-gray-600 dark:text-gray-300">
+                          {weather.kind === 'forecast' ? 'Forecast' : 'Typical for these dates'} ·{' '}
+                          <a
+                            href="https://open-meteo.com/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline hover:no-underline"
+                          >
+                            Open-Meteo
+                          </a>
+                        </span>
+                      </span>
+                    ) : currentTrip.startDate ? (
+                      <span className="text-gray-800 dark:text-gray-100">
+                        <strong>Weather:</strong> Not available
+                        <span className="block text-sm text-gray-600 dark:text-gray-300">
+                          We couldn&apos;t find {currentTrip.destination}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-gray-800 capitalize dark:text-gray-100">
+                        <strong>Climate:</strong> {currentTrip.climate}
+                      </span>
+                    )}
                   </div>
                 </div>
                 {currentTrip.source === 'fallback' && (
