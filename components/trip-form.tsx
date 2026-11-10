@@ -5,37 +5,28 @@ import Checkbox from '@/components/ui/Checkbox';
 import FormField from '@/components/ui/form-field';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import { ACCOMMODATIONS, ACTIVITIES, CLIMATES, MAX_DURATION_DAYS, MAX_GROUP_SIZE, SEASONS } from '@/lib/trip-options';
 import { TripDetails } from '@/lib/types';
-import { AlertCircle, Baby, Calendar, Cloud, Home, MapPin, Plane, Users } from 'lucide-react';
-import { useState } from 'react';
+import { AlertCircle, Baby, Calendar, Cloud, Home, MapPin, Navigation, Plane, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface TripFormProps {
   onSubmit: (details: TripDetails) => void;
   isLoading: boolean;
   isGuest?: boolean;
+  disabled?: boolean;
 }
 
-const activities = [
-  'hiking',
-  'beach',
-  'skiing',
-  'business',
-  'camping',
-  'sightseeing',
-  'shopping',
-  'dining',
-  'nightlife',
-  'sports',
-  'photography',
-  'relaxation',
-];
+const ORIGIN_STORAGE_KEY = 'pack-it-up-origin';
 
-const seasons = ['spring', 'summer', 'fall', 'winter'];
-const climates = ['tropical', 'temperate', 'cold', 'desert'];
-const accommodations = ['hotel', 'hostel', 'camping', 'airbnb', 'other'];
+const parseWholeNumber = (value: string) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) ? undefined : parsed;
+};
 
-export default function TripForm({ onSubmit, isLoading, isGuest = false }: TripFormProps) {
+export default function TripForm({ onSubmit, isLoading, isGuest = false, disabled = false }: TripFormProps) {
   const [formData, setFormData] = useState<Partial<TripDetails>>({
+    origin: '',
     destination: '',
     duration: 1,
     season: 'summer',
@@ -49,20 +40,41 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false }: TripF
 
   const [specialNeed, setSpecialNeed] = useState('');
 
+  // Most trips start from the same place, so remember it between visits
+  useEffect(() => {
+    try {
+      const savedOrigin = window.localStorage.getItem(ORIGIN_STORAGE_KEY);
+      if (savedOrigin) {
+        setFormData((prev) => (prev.origin ? prev : { ...prev, origin: savedOrigin }));
+      }
+    } catch {
+      // Storage can be unavailable in private windows
+    }
+  }, []);
+
+  const missingFields = [
+    !formData.origin?.trim() && 'your home city',
+    !formData.destination?.trim() && 'a destination',
+    !formData.duration && 'the number of days',
+    !formData.groupSize && 'the group size',
+    !formData.activities?.length && 'at least one activity',
+  ].filter(Boolean) as string[];
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (
-      formData.destination &&
-      formData.duration &&
-      formData.season &&
-      formData.climate &&
-      formData.activities &&
-      formData.accommodation &&
-      formData.groupSize !== undefined &&
-      formData.includesChildren !== undefined
-    ) {
-      onSubmit(formData as TripDetails);
+    if (missingFields.length || disabled) {
+      return;
     }
+    try {
+      window.localStorage.setItem(ORIGIN_STORAGE_KEY, formData.origin!.trim());
+    } catch {
+      // Remembering the origin is a convenience only
+    }
+    onSubmit({
+      ...(formData as TripDetails),
+      origin: formData.origin!.trim(),
+      destination: formData.destination!.trim(),
+    });
   };
 
   const handleActivityToggle = (activity: string) => {
@@ -93,16 +105,35 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false }: TripF
 
   const submitLabel = isLoading ? 'Generating...' : isGuest ? 'Preview Packing List' : 'Generate Packing List';
 
+  const formatList = (parts: string[]) =>
+    parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
+
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* Basic Information */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div>
+          <Input
+            icon={{ name: Navigation }}
+            label={{ name: 'Home city' }}
+            value={formData.origin}
+            onChange={(e) => setFormData((prev) => ({ ...prev, origin: e.target.value }))}
+            placeholder="e.g., Struga, North Macedonia"
+            maxLength={100}
+            aria-describedby="origin-hint"
+            required
+          />
+          <p id="origin-hint" className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+            Where you live, even if you fly out from somewhere else.
+          </p>
+        </div>
         <Input
           icon={{ name: MapPin }}
           label={{ name: 'Destination' }}
           value={formData.destination}
           onChange={(e) => setFormData((prev) => ({ ...prev, destination: e.target.value }))}
           placeholder="e.g., Paris, France"
+          maxLength={100}
           required
         />
         <Input
@@ -110,25 +141,9 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false }: TripF
           label={{ name: 'Duration (days)' }}
           type="number"
           min="1"
-          max="365"
-          value={formData.duration}
-          onChange={(e) => setFormData((prev) => ({ ...prev, duration: parseInt(e.target.value) }))}
-          required
-        />
-        <Select
-          icon={{ name: Cloud }}
-          label={{ name: 'Season' }}
-          value={formData.season}
-          onChange={(e) => setFormData((prev) => ({ ...prev, season: e.target.value as any }))}
-          options={seasons}
-          required
-        />
-        <Select
-          icon={{ name: Cloud }}
-          label={{ name: 'Climate' }}
-          value={formData.climate}
-          onChange={(e) => setFormData((prev) => ({ ...prev, climate: e.target.value as any }))}
-          options={climates}
+          max={MAX_DURATION_DAYS}
+          value={formData.duration ?? ''}
+          onChange={(e) => setFormData((prev) => ({ ...prev, duration: parseWholeNumber(e.target.value) }))}
           required
         />
         <Input
@@ -136,17 +151,35 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false }: TripF
           label={{ name: 'Group Size' }}
           type="number"
           min="1"
-          max="20"
-          value={formData.groupSize}
-          onChange={(e) => setFormData((prev) => ({ ...prev, groupSize: parseInt(e.target.value) }))}
+          max={MAX_GROUP_SIZE}
+          value={formData.groupSize ?? ''}
+          onChange={(e) => setFormData((prev) => ({ ...prev, groupSize: parseWholeNumber(e.target.value) }))}
+          required
+        />
+        <Select
+          icon={{ name: Cloud }}
+          label={{ name: 'Season' }}
+          value={formData.season}
+          onChange={(e) => setFormData((prev) => ({ ...prev, season: e.target.value as TripDetails['season'] }))}
+          options={[...SEASONS]}
+          required
+        />
+        <Select
+          icon={{ name: Cloud }}
+          label={{ name: 'Climate' }}
+          value={formData.climate}
+          onChange={(e) => setFormData((prev) => ({ ...prev, climate: e.target.value as TripDetails['climate'] }))}
+          options={[...CLIMATES]}
           required
         />
         <Select
           icon={{ name: Home }}
           label={{ name: 'Accommodation' }}
           value={formData.accommodation}
-          onChange={(e) => setFormData((prev) => ({ ...prev, accommodation: e.target.value as any }))}
-          options={accommodations}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, accommodation: e.target.value as TripDetails['accommodation'] }))
+          }
+          options={[...ACCOMMODATIONS]}
           required
         />
       </div>
@@ -155,7 +188,7 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false }: TripF
 
       <FormField icon={{ name: Plane }} label={{ name: 'Activities (select all that apply)', className: 'mb-4' }}>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-          {activities.map((activity, index) => (
+          {ACTIVITIES.map((activity, index) => (
             <Checkbox
               key={index}
               label={{ name: activity, className: 'capitalize' }}
@@ -223,11 +256,14 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false }: TripF
         )}
         <Button
           type="submit"
-          disabled={isLoading || !formData.destination || !formData.activities?.length}
+          disabled={isLoading || disabled || missingFields.length > 0}
           className="btn-primary px-8 py-3 text-lg disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitLabel}
         </Button>
+        {missingFields.length > 0 && (
+          <p className="text-sm text-gray-600 dark:text-gray-300">To continue, add {formatList(missingFields)}.</p>
+        )}
       </div>
     </form>
   );
