@@ -11,7 +11,7 @@ import { PackingItem, Transport, TripDetails, WeatherSummary } from '@/lib/types
 import { pluralize } from '@/lib/utils';
 import { describeWeather } from '@/lib/weather';
 import { SignInButton, SignUpButton, UserButton, useUser } from '@clerk/nextjs';
-import { Calendar, CloudSun, History, Info, Luggage, MapPin, Users, X } from 'lucide-react';
+import { Calendar, CloudSun, History, Info, Luggage, MapPin, Sparkles, Users, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 interface Trip {
@@ -344,12 +344,16 @@ export default function Home() {
         )}
 
         <div className="mb-12 text-center print:hidden">
+          <span className="bg-primary-100 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200 mb-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium">
+            <Sparkles className="h-4 w-4" />
+            AI packing assistant
+          </span>
           <div className="mb-4 flex items-center justify-center">
             <Luggage className="text-primary-600 dark:text-primary-400 mr-3 h-12 w-12" />
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Pack It Up</h1>
           </div>
           <p className="mx-auto max-w-2xl text-xl text-gray-700 dark:text-gray-200">
-            Generate personalized packing lists based on your destination, activities, and travel preferences
+            Packing lists built around your destination, your dates, the weather, and how you travel
           </p>
           {isLoaded && isGuest && (
             <p className="mx-auto mt-4 max-w-2xl text-sm text-gray-600 dark:text-gray-300">

@@ -12,9 +12,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Pack It Up - Smart Packing Lists',
+  title: 'Pack It Up - AI Packing Assistant',
   description:
-    'Generate personalized packing lists based on your destination, activities, and travel preferences. Smart AI-powered suggestions for your next trip.',
+    'An AI packing assistant that builds your list around your destination, your dates, the weather, and how you travel.',
   keywords: ['packing list', 'travel planner', 'trip organizer', 'packing checklist', 'travel essentials'],
   authors: [{ name: 'Pack It Up' }],
   robots: {
@@ -22,15 +22,15 @@ export const metadata: Metadata = {
     follow: true,
   },
   openGraph: {
-    title: 'Pack It Up - Smart Packing Lists',
-    description: 'Generate personalized packing lists based on your destination, activities, and travel preferences.',
+    title: 'Pack It Up - AI Packing Assistant',
+    description: 'Packing lists built around your destination, your dates, the weather, and how you travel.',
     type: 'website',
     siteName: 'Pack It Up',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Pack It Up - Smart Packing Lists',
-    description: 'Generate personalized packing lists based on your destination, activities, and travel preferences.',
+    title: 'Pack It Up - AI Packing Assistant',
+    description: 'Packing lists built around your destination, your dates, the weather, and how you travel.',
   },
 };
 
