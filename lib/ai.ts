@@ -199,8 +199,13 @@ function generateFallbackSuggestions(tripDetails: TripContext): SuggestedItem[] 
   const items: FallbackItem[] = [];
   const add = (...newItems: FallbackItem[]) => items.push(...newItems);
 
+  const originCode = tripDetails.originPlace?.countryCode;
+  const destinationCode = tripDetails.destinationPlace?.countryCode;
   const originCountry = countryOf(origin);
-  const isDomestic = originCountry !== '' && originCountry === countryOf(destination);
+  const isDomestic =
+    originCode && destinationCode
+      ? originCode === destinationCode
+      : originCountry !== '' && originCountry === countryOf(destination);
   const { cold: isCold, warm, hot: isHot, humid, rainy, snowy, coolEvenings } = conditionsFor(tripDetails);
   const carryOnOnly = transport === 'flight-carry-on';
   const needsLaundry = duration > 7 || (carryOnOnly && duration > 5);

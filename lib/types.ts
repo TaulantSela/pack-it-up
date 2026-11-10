@@ -4,10 +4,21 @@ import { ACCOMMODATIONS, SEASONS, TRANSPORTS } from './trip-options';
 export type Season = (typeof SEASONS)[number];
 export type Transport = (typeof TRANSPORTS)[number];
 
+// A place picked from the suggestions, so the server doesn't have to guess
+export interface Place {
+  label: string; // "Paris, France"
+  region?: string; // "Île-de-France"
+  countryCode?: string; // "FR"
+  latitude: number;
+  longitude: number;
+}
+
 // What the trip form sends
 export interface TripDetails {
   origin: string;
+  originPlace?: Place;
   destination: string;
+  destinationPlace?: Place;
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
   transport: Transport;

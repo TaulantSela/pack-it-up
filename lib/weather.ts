@@ -1,5 +1,5 @@
 import { addDays, addYears, todayDateString, tripLength } from './dates';
-import { WeatherSummary } from './types';
+import { Place, WeatherSummary } from './types';
 import { pluralize } from './utils';
 
 // Open-Meteo is free for non-commercial use, needs no key, and asks for attribution
@@ -12,11 +12,8 @@ const SNOWY_DAY_CM = 0.5;
 
 const COUNTRY_ALIASES: Record<string, string> = { usa: 'us', uk: 'gb', uae: 'ae' };
 
-export interface Place {
-  label: string;
-  latitude: number;
-  longitude: number;
-}
+// Towns and cities, islands, countries and regions, but not airports, peaks, parks or attractions
+const PLACE_FEATURE_PREFIXES = ['PPL', 'ISL', 'PCL', 'ADM'];
 
 interface GeocodingResult {
   name: string;
@@ -25,6 +22,7 @@ interface GeocodingResult {
   country?: string;
   country_code?: string;
   admin1?: string;
+  feature_code?: string;
 }
 
 interface DailyWeather {
@@ -34,29 +32,34 @@ interface DailyWeather {
   snowfall_sum: (number | null)[];
 }
 
-async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(url, { signal: signal ?? AbortSignal.timeout(TIMEOUT_MS) });
   if (!response.ok) {
     throw new Error(`Open-Meteo returned ${response.status} for ${new URL(url).pathname}`);
   }
   return response.json();
 }
 
-// "Paris, France" searches for Paris and prefers the result in France over Paris, Texas
-export async function findPlace(query: string): Promise<Place | null> {
+// "Paris, France" searches for Paris and puts the result in France ahead of Paris, Texas.
+// Runs in the browser for the place suggestions and on the server for the weather.
+export async function searchPlaces(query: string, signal?: AbortSignal): Promise<Place[]> {
   const [name, ...rest] = query
     .split(',')
     .map((part) => part.trim())
     .filter(Boolean);
-  if (!name) return null;
+  if (!name || name.length < 2) return [];
 
   const hint = rest.join(' ').toLowerCase();
   const hintWords = hint.split(/\s+/).map((word) => COUNTRY_ALIASES[word] ?? word);
   const params = new URLSearchParams({ name, count: '10', language: 'en', format: 'json' });
   const data = await fetchJson<{ results?: GeocodingResult[] }>(
     `https://geocoding-api.open-meteo.com/v1/search?${params}`,
+    signal,
   );
-  const results = data.results ?? [];
+
+  const results = (data.results ?? []).filter((result) =>
+    PLACE_FEATURE_PREFIXES.some((prefix) => result.feature_code?.startsWith(prefix)),
+  );
 
   const matchesHint = (result: GeocodingResult) => {
     const names = [result.country, result.admin1].filter(Boolean).map((value) => value!.toLowerCase());
@@ -65,15 +68,30 @@ export async function findPlace(query: string): Promise<Place | null> {
       hintWords.includes(result.country_code?.toLowerCase() ?? '')
     );
   };
+  const ranked = hint ? [...results.filter(matchesHint), ...results.filter((result) => !matchesHint(result))] : results;
 
-  const match = (hint && results.find(matchesHint)) || results[0];
-  if (!match) return null;
+  const seen = new Set<string>();
+  return ranked.flatMap((result) => {
+    const label =
+      result.name === result.country ? result.name : [result.name, result.country].filter(Boolean).join(', ');
+    const region = result.admin1 && result.admin1 !== result.name ? result.admin1 : undefined;
+    const key = `${label}|${region}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [
+      {
+        label,
+        region,
+        countryCode: result.country_code,
+        latitude: result.latitude,
+        longitude: result.longitude,
+      },
+    ];
+  });
+}
 
-  return {
-    label: [match.name, match.country].filter(Boolean).join(', '),
-    latitude: match.latitude,
-    longitude: match.longitude,
-  };
+export async function findPlace(query: string): Promise<Place | null> {
+  return (await searchPlaces(query))[0] ?? null;
 }
 
 async function fetchDaily(base: string, place: Place, startDate: string, endDate: string): Promise<DailyWeather> {

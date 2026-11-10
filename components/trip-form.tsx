@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button';
 import Checkbox from '@/components/ui/Checkbox';
 import FormField from '@/components/ui/form-field';
 import Input from '@/components/ui/Input';
+import PlaceInput from '@/components/ui/PlaceInput';
 import Select from '@/components/ui/Select';
 import { tripLength } from '@/lib/dates';
 import {
@@ -14,7 +15,7 @@ import {
   TRANSPORT_LABELS,
   TRANSPORTS,
 } from '@/lib/trip-options';
-import { TripDetails } from '@/lib/types';
+import { Place, TripDetails } from '@/lib/types';
 import { pluralize } from '@/lib/utils';
 import { Baby, Calendar, Car, Home, MapPin, MessageSquare, Navigation, Plane, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -56,10 +57,21 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false, disable
   // Most trips start from the same place, so remember it between visits
   useEffect(() => {
     try {
-      const savedOrigin = window.localStorage.getItem(ORIGIN_STORAGE_KEY);
-      if (savedOrigin) {
-        setFormData((prev) => (prev.origin ? prev : { ...prev, origin: savedOrigin }));
+      const saved = window.localStorage.getItem(ORIGIN_STORAGE_KEY);
+      if (!saved) return;
+      // Older visits saved plain text, newer ones also save the picked place
+      let origin = saved;
+      let originPlace: Place | undefined;
+      try {
+        const parsed = JSON.parse(saved) as { origin?: string; place?: Place };
+        if (parsed.origin) {
+          origin = parsed.origin;
+          originPlace = parsed.place;
+        }
+      } catch {
+        // Plain text from an older visit
       }
+      setFormData((prev) => (prev.origin ? prev : { ...prev, origin, originPlace }));
     } catch {
       // Storage can be unavailable in private windows
     }
@@ -92,7 +104,10 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false, disable
       return;
     }
     try {
-      window.localStorage.setItem(ORIGIN_STORAGE_KEY, formData.origin!.trim());
+      window.localStorage.setItem(
+        ORIGIN_STORAGE_KEY,
+        JSON.stringify({ origin: formData.origin!.trim(), place: formData.originPlace }),
+      );
     } catch {
       // Remembering the origin is a convenience only
     }
@@ -139,28 +154,26 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false, disable
       {/* Basic Information */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div>
-          <Input
+          <PlaceInput
             icon={{ name: Navigation }}
-            label={{ name: 'Home city' }}
-            value={formData.origin}
-            onChange={(e) => setFormData((prev) => ({ ...prev, origin: e.target.value }))}
+            label="Home city"
+            value={formData.origin ?? ''}
+            onChange={(origin, originPlace) => setFormData((prev) => ({ ...prev, origin, originPlace }))}
             placeholder="e.g., Struga, North Macedonia"
-            maxLength={100}
-            aria-describedby="origin-hint"
-            required
+            describedBy="origin-hint"
           />
           <p id="origin-hint" className="mt-1 text-xs text-gray-600 dark:text-gray-300">
             Where you live, even if you fly out from somewhere else.
           </p>
         </div>
-        <Input
+        <PlaceInput
           icon={{ name: MapPin }}
-          label={{ name: 'Destination' }}
-          value={formData.destination}
-          onChange={(e) => setFormData((prev) => ({ ...prev, destination: e.target.value }))}
+          label="Destination"
+          value={formData.destination ?? ''}
+          onChange={(destination, destinationPlace) =>
+            setFormData((prev) => ({ ...prev, destination, destinationPlace }))
+          }
           placeholder="e.g., Paris, France"
-          maxLength={100}
-          required
         />
         <Input
           icon={{ name: Calendar }}

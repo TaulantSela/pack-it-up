@@ -39,7 +39,8 @@ export async function buildTripContext(details: TripDetails): Promise<TripContex
   let weather: WeatherSummary | null = null;
 
   try {
-    const place = await findPlace(details.destination);
+    // Use the place picked from the suggestions, otherwise the best match for the text
+    const place = details.destinationPlace ?? (await findPlace(details.destination));
     if (place) {
       latitude = place.latitude;
       weather = await getTripWeather(place, details.startDate, details.endDate);
