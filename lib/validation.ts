@@ -12,10 +12,23 @@ import {
 
 const dateString = z.iso.date();
 
+const placeSchema = z.object({
+  label: z.string().trim().min(1).max(150),
+  region: z.string().trim().max(100).optional(),
+  countryCode: z
+    .string()
+    .regex(/^[A-Za-z]{2}$/)
+    .optional(),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+});
+
 export const tripDetailsSchema = z
   .object({
     origin: z.string().trim().min(1).max(100),
+    originPlace: placeSchema.optional(),
     destination: z.string().trim().min(1).max(100),
+    destinationPlace: placeSchema.optional(),
     startDate: dateString,
     endDate: dateString,
     transport: z.enum(TRANSPORTS),
