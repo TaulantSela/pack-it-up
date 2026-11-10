@@ -4,7 +4,7 @@ A modern, intelligent packing list app built with Next.js that generates persona
 
 ## Features
 
-- **Smart Recommendations**: AI-powered packing suggestions based on destination, climate, activities, and travel preferences
+- **Smart Recommendations**: AI-powered packing suggestions (Google Gemini) based on where you live, your destination, climate, activities, and travel preferences, with a rule-based fallback when the AI is unavailable
 - **Interactive Checklist**: Check off items as you pack with real-time progress tracking
 - **Categorized Items**: Items organized by category (clothing, toiletries, electronics, etc.)
 - **Essential Items Highlighting**: Important items are clearly marked
@@ -22,6 +22,7 @@ A modern, intelligent packing list app built with Next.js that generates persona
 
 ## Trip Information Collected
 
+- **Home city**: Where you live, which decides passport and visa reminders, plug adapters, and currency
 - **Destination**: Where you're traveling
 - **Duration**: How many days you'll be away
 - **Season**: Spring, Summer, Fall, or Winter
@@ -57,7 +58,7 @@ A modern, intelligent packing list app built with Next.js that generates persona
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22+
 - npm or yarn
 
 ### Installation
@@ -75,13 +76,15 @@ cd pack-it-up
 npm install
 ```
 
-3. Run the development server:
+3. Copy `.env.example` to `.env` and fill it in. `GOOGLE_GENERATIVE_AI_API_KEY` is a free key from [Google AI Studio](https://aistudio.google.com/apikey); without it, lists come from the built-in fallback.
+
+4. Run the development server:
 
 ```bash
 npm run dev
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
 ### Building for Production
 
@@ -92,44 +95,49 @@ npm start
 
 ## Technology Stack
 
-- **Framework**: Next.js 14 with App Router
+- **Framework**: Next.js 15 with App Router
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
+- **AI**: Vercel AI SDK with Google Gemini (free tier), validated with Zod
+- **Auth**: Clerk, with a guest mode
+- **Database**: PostgreSQL (Neon) via Prisma
 - **Icons**: Lucide React
-- **State Management**: React Hooks
-- **Deployment**: Vercel-ready
+- **Deployment**: Vercel
 
 ## Project Structure
 
 ```
 pack-it-up/
 ├── app/
-│   ├── globals.css          # Global styles
+│   ├── api/trips/           # Trip, item, progress and duplicate endpoints
+│   ├── globals.css          # Global and print styles
 │   ├── layout.tsx           # Root layout
 │   └── page.tsx             # Main page component
 ├── components/
-│   ├── TripForm.tsx         # Trip details form
-│   └── PackingList.tsx      # Packing list display
+│   ├── trip-form.tsx        # Trip details form
+│   ├── packing-list.tsx     # Packing list display
+│   └── packing-history.tsx  # Saved lists
 ├── lib/
-│   ├── types.ts             # TypeScript interfaces
-│   └── packingLogic.ts      # Smart packing algorithm
-├── public/                  # Static assets
-└── package.json             # Dependencies and scripts
+│   ├── ai.ts                # Gemini prompt and rule-based fallback
+│   ├── trip-options.ts      # Activities, seasons, climates, categories
+│   ├── validation.ts        # Zod schemas for API input
+│   └── rate-limit.ts        # Guest rate limiting
+└── prisma/schema.prisma     # Database schema
 ```
 
 ## Customization
 
 ### Adding New Activities
 
-Edit `lib/packingLogic.ts` and add new activity items to the `activityItems` object.
+Add the activity to `ACTIVITIES` in `lib/trip-options.ts`, then add its fallback items in `generateFallbackSuggestions` in `lib/ai.ts`.
 
-### Modifying Base Items
+### Changing the AI Model
 
-Update the `baseItems` array in `lib/packingLogic.ts` to add or remove default items.
+Set `AI_MODEL` to another Gemini model ID. The default is set in `lib/ai.ts`.
 
-### Styling Changes
+### Database Changes
 
-Modify `app/globals.css` and `tailwind.config.js` to customize the appearance.
+The database is managed with `prisma db push`, so run `npx prisma db push` after changing `prisma/schema.prisma`.
 
 ## Contributing
 
