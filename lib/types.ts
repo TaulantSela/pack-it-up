@@ -1,6 +1,7 @@
 import { ComponentType } from 'react';
 
 export interface TripDetails {
+  origin: string;
   destination: string;
   duration: number;
   season: 'spring' | 'summer' | 'fall' | 'winter';
@@ -20,13 +21,6 @@ export interface PackingItem {
   quantity: number;
   notes?: string;
   aiSuggested?: boolean;
-}
-
-export interface PackingList {
-  id: string;
-  tripDetails: TripDetails;
-  items: PackingItem[];
-  createdAt: Date;
 }
 
 export interface IconI {

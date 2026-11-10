@@ -14,9 +14,9 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['lucide-react'],
   },
 
-  // Target modern browsers only
+  // Strip debug logs in production, but keep errors and warnings so they reach the Vercel logs
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
+    removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,
   },
 
   // Headers for better caching and security

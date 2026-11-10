@@ -49,3 +49,17 @@
     @apply rounded-xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-600 dark:bg-gray-800;
   }
 }
+
+/* Print the list as black on white in either theme, and keep categories together */
+@media print {
+  * {
+    color: #111 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .card {
+    padding: 0.75rem;
+    break-inside: avoid;
+  }
+}
