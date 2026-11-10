@@ -12,6 +12,7 @@ import {
   Printer,
   RotateCcw,
   Shirt,
+  Sparkles,
   Star,
   Trash2,
   X,
@@ -406,7 +407,16 @@ export default function PackingList({
       {/* Header with Progress */}
       <div className="card">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Your Packing List</h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Your Packing List</h2>
+            {/* One label for the list, since nearly every item comes from the AI */}
+            {allItems.some((item) => item.aiSuggested) && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200 print:hidden">
+                <Sparkles className="h-3.5 w-3.5" />
+                Made with AI
+              </span>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-3 print:hidden">
             <label className="flex cursor-pointer items-center space-x-2">
               <input
@@ -646,11 +656,6 @@ export default function PackingList({
                             {item.name}
                           </span>
                           {item.essential && <Star className="h-4 w-4 fill-current text-yellow-500" />}
-                          {item.aiSuggested && (
-                            <span className="rounded bg-blue-100 px-2 py-1 text-xs text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                              AI
-                            </span>
-                          )}
                         </div>
                         {item.notes && <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{item.notes}</p>}
                       </div>
