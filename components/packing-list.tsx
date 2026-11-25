@@ -15,6 +15,7 @@ import {
   Shirt,
   Star,
   Trash2,
+  Users,
   X,
   Zap,
 } from 'lucide-react';
@@ -24,6 +25,7 @@ import { useEffect, useState } from 'react';
 interface PackingListProps {
   items: PackingItem[];
   tripId: string;
+  groupSize?: number;
   isGuest?: boolean;
   onRequireAuth?: () => void;
   initialCheckedIds?: string[];
@@ -52,12 +54,18 @@ const categoryColors = {
 export default function PackingList({
   items,
   tripId,
+  groupSize = 1,
   isGuest = false,
   onRequireAuth,
   initialCheckedIds,
   onGuestToggleItem,
   onGuestResetProgress,
 }: PackingListProps) {
+  // The AI and the built-in list count personal items per person; shared items' notes start with "Shared:"
+  const quantityNote =
+    groupSize > 1
+      ? `For ${pluralize(groupSize, 'person', 'people')}: quantities are per person. Items marked “Shared” are one for the whole group.`
+      : null;
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const [showOnlyEssential, setShowOnlyEssential] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -389,9 +397,11 @@ export default function PackingList({
   };
 
   const handleExport = () => {
-    const listText = allItems
-      .map((item) => `${item.name} (${item.quantity}x)${item.essential ? ' *ESSENTIAL*' : ''}`)
-      .join('\n');
+    const lines = allItems.map(
+      (item) =>
+        `${item.name} (${item.quantity}x)${item.essential ? ' *ESSENTIAL*' : ''}${item.notes ? ` - ${item.notes}` : ''}`,
+    );
+    const listText = (quantityNote ? [quantityNote, '', ...lines] : lines).join('\n');
 
     const blob = new Blob([listText], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -438,6 +448,13 @@ export default function PackingList({
             </button>
           </div>
         </div>
+
+        {quantityNote && (
+          <p className="mb-4 flex items-start gap-2 text-sm text-gray-700 dark:text-gray-200">
+            <Users className="text-primary-600 dark:text-primary-400 mt-0.5 h-4 w-4 shrink-0" />
+            <span>{quantityNote}</span>
+          </p>
+        )}
 
         {/* Progress Bar */}
         <div className="mb-4">
