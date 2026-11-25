@@ -24,6 +24,7 @@ AI is unavailable, a rule-based list takes over, so you always get one.
 | **Luggage-aware** | Carry-on only means 100 ml liquids and fewer clothes; car and train/bus trips get what the journey itself needs |
 | **Place suggestions** | Home city and destination suggest towns, islands and countries as you type |
 | **Checklist** | Tick items off with a progress bar, show essentials only, or uncheck everything |
+| **Per-person ticks** | On group trips everyone gets their own tick on personal items (named if you add names), so you can see that your passport is packed and your partner's isn't. Shared items like a tent get one tick; groups over six get a counter instead |
 | **Edit the list** | Add items or your own categories, change quantities, remove items |
 | **History** | Your last 50 lists, with checked items synced across devices |
 | **Export** | Download as a text file, or print it with a print stylesheet |
@@ -145,7 +146,9 @@ Other scripts: `npm run build`, `npm start`, `npm run lint`.
   it fallback items in `generateFallbackSuggestions` in `lib/ai.ts`.
 - **Another model:** set `AI_MODEL` or `GROQ_MODEL`, or change the model constants at the top of `lib/ai.ts`.
 - **Schema changes:** the database is managed with `prisma db push`, so run
-  `npx prisma db push` after editing `prisma/schema.prisma`.
+  `npm run db:push` (dev database only) after editing `prisma/schema.prisma`.
+  Production isn't migrated by the build: apply the same change to it by hand,
+  additive steps first, before the code that needs it goes live.
 
 ## Known limitations
 

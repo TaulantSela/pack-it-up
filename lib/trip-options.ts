@@ -28,6 +28,7 @@ export const ACCOMMODATIONS = ['hotel', 'hostel', 'camping', 'airbnb', 'other'] 
 export const CATEGORIES = ['clothing', 'toiletries', 'electronics', 'documents', 'accessories', 'other'] as const;
 
 export const MAX_GROUP_SIZE = 20;
+export const MAX_TRAVELER_NAME = 40;
 export const MAX_DURATION_DAYS = 365;
 export const MAX_QUANTITY = 99;
 export const MAX_DAYS_AHEAD = 730;

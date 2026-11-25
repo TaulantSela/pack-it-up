@@ -1,13 +1,17 @@
 'use client';
 
+import { isSharedItem, MAX_TICKED_TRAVELERS, parseTravelers, tickKey, travelerLabel } from '@/lib/travelers';
 import { PackingItem } from '@/lib/types';
 import { pluralize } from '@/lib/utils';
 import {
+  Check,
   CheckCircle,
   Circle,
+  CircleDot,
   Download,
   Droplets,
   FileText,
+  Minus,
   Package,
   Plus,
   Printer,
@@ -20,16 +24,19 @@ import {
   Zap,
 } from 'lucide-react';
 import type { MouseEvent, SyntheticEvent } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface PackingListProps {
   items: PackingItem[];
   tripId: string;
   groupSize?: number;
+  // JSON array of traveler names; null for trips from before per-person ticks
+  travelers?: string | null;
   isGuest?: boolean;
   onRequireAuth?: () => void;
-  initialCheckedIds?: string[];
-  onGuestToggleItem?: (itemId: string, checked: boolean) => void;
+  // tickKey(itemId, person) for every tick
+  initialTicks?: string[];
+  onGuestToggleItem?: (itemId: string, persons: number[], checked: boolean) => void;
   onGuestResetProgress?: () => void;
 }
 
@@ -55,9 +62,10 @@ export default function PackingList({
   items,
   tripId,
   groupSize = 1,
+  travelers,
   isGuest = false,
   onRequireAuth,
-  initialCheckedIds,
+  initialTicks,
   onGuestToggleItem,
   onGuestResetProgress,
 }: PackingListProps) {
@@ -66,7 +74,12 @@ export default function PackingList({
     groupSize > 1
       ? `For ${pluralize(groupSize, 'person', 'people')}: quantities are per person. Items marked “Shared” are one for the whole group.`
       : null;
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  // One tick per traveler for personal items on group trips; one tick per item otherwise
+  const travelerNames = useMemo(() => parseTravelers(travelers, groupSize), [travelers, groupSize]);
+  const perPerson = travelerNames !== null && groupSize > 1;
+  const useCounter = perPerson && groupSize > MAX_TICKED_TRAVELERS;
+  const everyone = useMemo(() => Array.from({ length: groupSize }, (_, i) => i), [groupSize]);
+  const [ticks, setTicks] = useState<Set<string>>(new Set());
   const [showOnlyEssential, setShowOnlyEssential] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [allItems, setAllItems] = useState<PackingItem[]>(items);
@@ -102,11 +115,11 @@ export default function PackingList({
     return interactive !== currentTarget;
   };
 
-  const handleCardClick = (event: MouseEvent<HTMLDivElement>, itemId: string) => {
+  const handleCardClick = (event: MouseEvent<HTMLDivElement>, item: PackingItem) => {
     if (isPreventedTarget(event.target, event.currentTarget)) {
       return;
     }
-    toggleItem(itemId);
+    toggleItem(item);
   };
 
   const handleCardPointerCapture = (event: SyntheticEvent<HTMLDivElement>) => {
@@ -121,9 +134,10 @@ export default function PackingList({
       try {
         const response = await fetch(`/api/trips/${tripId}/progress`);
         if (response.ok) {
-          const data = await response.json();
-          const checkedSet = new Set<string>(data.progress.filter((p: any) => p.checked).map((p: any) => p.itemId));
-          setCheckedItems(checkedSet);
+          const data: { progress: { itemId: string; person?: number; checked: boolean }[] } = await response.json();
+          setTicks(
+            new Set(data.progress.filter((p) => p.checked).map((p) => tickKey(p.itemId, p.person ?? 0))),
+          );
         }
       } catch (error) {
         console.error('Error loading progress:', error);
@@ -137,28 +151,35 @@ export default function PackingList({
 
   useEffect(() => {
     if (!isGuest) return;
-    const ids = initialCheckedIds ?? [];
-    const nextSet = new Set(ids);
-    if (nextSet.size === checkedItems.size && ids.every((id) => checkedItems.has(id))) {
+    const keys = initialTicks ?? [];
+    if (keys.length === ticks.size && keys.every((key) => ticks.has(key))) {
       return;
     }
-    setCheckedItems(nextSet);
-  }, [initialCheckedIds, isGuest, checkedItems]);
+    setTicks(new Set(keys));
+  }, [initialTicks, isGuest, ticks]);
 
-  const toggleItem = async (itemId: string) => {
-    const newChecked = new Set(checkedItems);
-    const isChecked = newChecked.has(itemId);
+  // The travelers who tick an item: everyone for personal items on group trips, else one tick
+  const personsFor = (item: PackingItem) => (perPerson && !isSharedItem(item.notes) ? everyone : [0]);
+  const tickedPersons = (item: PackingItem) => personsFor(item).filter((person) => ticks.has(tickKey(item.id, person)));
+  const isPacked = (item: PackingItem) => tickedPersons(item).length === personsFor(item).length;
 
-    if (isChecked) {
-      newChecked.delete(itemId);
-    } else {
-      newChecked.add(itemId);
-    }
+  const setItemTicks = async (itemId: string, persons: number[], checked: boolean) => {
+    const keys = persons.map((person) => tickKey(itemId, person));
+    const before = new Map(keys.map((key) => [key, ticks.has(key)]));
+    const apply = (entries: [string, boolean][]) =>
+      setTicks((current) => {
+        const next = new Set(current);
+        for (const [key, on] of entries) {
+          if (on) next.add(key);
+          else next.delete(key);
+        }
+        return next;
+      });
 
-    setCheckedItems(newChecked);
+    apply(keys.map((key) => [key, checked]));
 
     if (isGuest) {
-      onGuestToggleItem?.(itemId, !isChecked);
+      onGuestToggleItem?.(itemId, persons, checked);
       notifyGuestRestriction();
       return;
     }
@@ -171,10 +192,7 @@ export default function PackingList({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          itemId,
-          checked: !isChecked,
-        }),
+        body: JSON.stringify({ itemId, persons, checked }),
       });
 
       if (!response.ok) {
@@ -182,20 +200,25 @@ export default function PackingList({
       }
     } catch (error) {
       console.error('Error updating progress:', error);
-      // Revert only this item, other toggles may have happened meanwhile
-      setCheckedItems((previous) => {
-        const reverted = new Set(previous);
-        if (isChecked) {
-          reverted.add(itemId);
-        } else {
-          reverted.delete(itemId);
-        }
-        return reverted;
-      });
+      // Revert only these ticks, other toggles may have happened meanwhile
+      apply([...before.entries()]);
       setActionError('Couldn’t save that change. Please try again.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // The big tick packs or unpacks the item for everyone
+  const toggleItem = (item: PackingItem) => setItemTicks(item.id, personsFor(item), !isPacked(item));
+
+  const togglePerson = (item: PackingItem, person: number) =>
+    setItemTicks(item.id, [person], !ticks.has(tickKey(item.id, person)));
+
+  // Counter for big groups: + ticks the next traveler, - unticks the last one
+  const changeCount = (item: PackingItem, delta: 1 | -1) => {
+    const ticked = tickedPersons(item);
+    const person = delta > 0 ? personsFor(item).find((p) => !ticked.includes(p)) : ticked[ticked.length - 1];
+    if (person !== undefined) setItemTicks(item.id, [person], delta > 0);
   };
 
   // Update allItems when items prop changes
@@ -218,8 +241,13 @@ export default function PackingList({
 
   const totalItems = allItems.length;
   // Count only items that still exist, older trips can have progress for deleted items
-  const checkedCount = allItems.filter((item) => checkedItems.has(item.id)).length;
-  const progress = totalItems > 0 ? (checkedCount / totalItems) * 100 : 0;
+  const checkedCount = allItems.filter(isPacked).length;
+  // The bar counts every tick, so one of two passports packed is half of that item
+  const tickTotal = allItems.reduce((sum, item) => sum + personsFor(item).length, 0);
+  const tickDone = allItems.reduce((sum, item) => sum + tickedPersons(item).length, 0);
+  const progress = tickTotal > 0 ? (tickDone / tickTotal) * 100 : 0;
+  const personalItems = allItems.filter((item) => !isSharedItem(item.notes));
+  const sharedItems = allItems.filter((item) => isSharedItem(item.notes));
 
   const handleAddItem = async (category: string) => {
     if (isGuest) {
@@ -284,10 +312,8 @@ export default function PackingList({
       }
 
       setAllItems(allItems.filter((item) => item.id !== itemId));
-      // Remove from checked items if it was checked
-      const newChecked = new Set(checkedItems);
-      newChecked.delete(itemId);
-      setCheckedItems(newChecked);
+      // Remove its ticks
+      setTicks((current) => new Set([...current].filter((key) => !key.startsWith(`${itemId}#`))));
     } catch (error) {
       console.error('Error deleting item:', error);
       setActionError('Failed to delete item. Please try again.');
@@ -367,10 +393,10 @@ export default function PackingList({
   };
 
   const handleUncheckAll = async () => {
-    if (!confirm(`Uncheck ${pluralize(checkedCount, 'packed item')}?`)) return;
+    if (!confirm('Uncheck everything on this list?')) return;
 
     if (isGuest) {
-      setCheckedItems(new Set());
+      setTicks(new Set());
       onGuestResetProgress?.();
       return;
     }
@@ -383,7 +409,7 @@ export default function PackingList({
         throw new Error(`Reset progress failed: ${response.status}`);
       }
 
-      setCheckedItems(new Set());
+      setTicks(new Set());
     } catch (error) {
       console.error('Error resetting progress:', error);
       setActionError('Couldn’t uncheck the items. Please try again.');
@@ -428,7 +454,7 @@ export default function PackingList({
               />
               <span className="text-sm text-gray-800 dark:text-gray-100">Show essential only</span>
             </label>
-            {checkedCount > 0 && (
+            {tickDone > 0 && (
               <button
                 onClick={handleUncheckAll}
                 disabled={isLoading && !isGuest}
@@ -470,6 +496,24 @@ export default function PackingList({
               style={{ width: `${progress}%` }}
             />
           </div>
+          {perPerson && travelerNames && !useCounter && (
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-300">
+              {everyone.map((person) => (
+                <span key={person}>
+                  <strong className="font-medium text-gray-800 dark:text-gray-100">
+                    {travelerLabel(travelerNames, person)}
+                  </strong>{' '}
+                  {personalItems.filter((item) => ticks.has(tickKey(item.id, person))).length}/{personalItems.length}
+                </span>
+              ))}
+              {sharedItems.length > 0 && (
+                <span>
+                  <strong className="font-medium text-gray-800 dark:text-gray-100">Shared</strong>{' '}
+                  {sharedItems.filter(isPacked).length}/{sharedItems.length}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {actionError && (
@@ -617,21 +661,24 @@ export default function PackingList({
 
               <div className="space-y-3">
                 {categoryItems.map((item) => {
-                  const isChecked = checkedItems.has(item.id);
+                  const isChecked = isPacked(item);
+                  const persons = personsFor(item);
+                  const ticked = tickedPersons(item);
+                  const isPartial = !isChecked && ticked.length > 0;
 
                   return (
                     <div
                       key={item.id}
                       role="button"
                       tabIndex={0}
-                      onClick={(event) => handleCardClick(event, item.id)}
+                      onClick={(event) => handleCardClick(event, item)}
                       onMouseDownCapture={handleCardPointerCapture}
                       onTouchStartCapture={handleCardPointerCapture}
                       onKeyDown={(event) => {
                         if (event.target !== event.currentTarget) return;
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault();
-                          toggleItem(item.id);
+                          toggleItem(item);
                         }
                       }}
                       className={`flex cursor-pointer items-center space-x-3 rounded-lg border p-3 transition-all duration-200 ${
@@ -644,15 +691,17 @@ export default function PackingList({
                         data-prevent-card-toggle="true"
                         onClick={(event) => {
                           event.stopPropagation();
-                          toggleItem(item.id);
+                          toggleItem(item);
                         }}
                         disabled={isLoading && !isGuest}
-                        aria-label={`Packed ${item.name}`}
+                        aria-label={persons.length > 1 ? `Packed ${item.name} for everyone` : `Packed ${item.name}`}
                         aria-pressed={isChecked}
                         className="flex-shrink-0 disabled:opacity-50"
                       >
                         {isChecked ? (
                           <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        ) : isPartial ? (
+                          <CircleDot className="h-5 w-5 text-amber-500 dark:text-amber-400" />
                         ) : (
                           <Circle className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300" />
                         )}
@@ -668,6 +717,63 @@ export default function PackingList({
                           {item.essential && <Star className="h-4 w-4 fill-current text-yellow-500" />}
                         </div>
                         {item.notes && <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{item.notes}</p>}
+                        {persons.length > 1 && travelerNames && (
+                          <div
+                            className="mt-2 flex flex-wrap items-center gap-2"
+                            data-prevent-card-toggle="true"
+                            onClick={(event) => event.stopPropagation()}
+                            onTouchStart={(event) => event.stopPropagation()}
+                          >
+                            {useCounter ? (
+                              <>
+                                <button
+                                  data-prevent-card-toggle="true"
+                                  onClick={() => changeCount(item, -1)}
+                                  disabled={(isLoading && !isGuest) || ticked.length === 0}
+                                  aria-label={`One fewer ${item.name} packed`}
+                                  className="rounded border border-gray-300 p-1 text-gray-600 hover:bg-gray-100 disabled:opacity-40 dark:border-gray-500 dark:text-gray-300 dark:hover:bg-gray-600"
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </button>
+                                <span className="text-sm text-gray-700 dark:text-gray-200">
+                                  {ticked.length}/{persons.length} packed
+                                </span>
+                                <button
+                                  data-prevent-card-toggle="true"
+                                  onClick={() => changeCount(item, 1)}
+                                  disabled={(isLoading && !isGuest) || isChecked}
+                                  aria-label={`One more ${item.name} packed`}
+                                  className="rounded border border-gray-300 p-1 text-gray-600 hover:bg-gray-100 disabled:opacity-40 dark:border-gray-500 dark:text-gray-300 dark:hover:bg-gray-600"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </button>
+                              </>
+                            ) : (
+                              persons.map((person) => {
+                                const isTicked = ticked.includes(person);
+                                const label = travelerLabel(travelerNames, person);
+                                return (
+                                  <button
+                                    key={person}
+                                    data-prevent-card-toggle="true"
+                                    onClick={() => togglePerson(item, person)}
+                                    disabled={isLoading && !isGuest}
+                                    aria-pressed={isTicked}
+                                    aria-label={`${label} packed ${item.name}`}
+                                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors disabled:opacity-50 ${
+                                      isTicked
+                                        ? 'border-green-300 bg-green-100 text-green-800 dark:border-green-700 dark:bg-green-900/40 dark:text-green-200'
+                                        : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400 dark:border-gray-500 dark:bg-gray-700 dark:text-gray-300'
+                                    }`}
+                                  >
+                                    {isTicked ? <Check className="h-3 w-3" /> : <Circle className="h-3 w-3" />}
+                                    {label}
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <div

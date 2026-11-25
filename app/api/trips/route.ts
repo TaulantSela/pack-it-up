@@ -2,6 +2,7 @@ import { generatePackingSuggestions, SuggestionSource } from '@/lib/ai';
 import { parseDate } from '@/lib/dates';
 import { prisma } from '@/lib/db';
 import { getClientIp, isRateLimited } from '@/lib/rate-limit';
+import { normalizeTravelers } from '@/lib/travelers';
 import { buildTripContext } from '@/lib/trip-context';
 import { pluralize } from '@/lib/utils';
 import { guestTripMigrationSchema, tripDetailsSchema } from '@/lib/validation';
@@ -96,6 +97,7 @@ export async function POST(request: NextRequest) {
       activities: JSON.stringify(tripDetails.activities),
       accommodation: tripDetails.accommodation,
       groupSize: tripDetails.groupSize,
+      travelers: JSON.stringify(normalizeTravelers(tripDetails.travelers, tripDetails.groupSize)),
       includesChildren: tripDetails.includesChildren,
       specialNeeds: JSON.stringify(tripDetails.specialNeeds),
     };
@@ -123,9 +125,16 @@ export async function POST(request: NextRequest) {
 
       // Guest item ids are replaced with new ones, so map the old ids to keep checked items checked
       const newItemIds = new Map(suggestionItems.map((item) => [item.id, randomUUID()]));
-      const progressToCreate = (migrateGuestTrip?.progress ?? [])
-        .filter((entry) => entry.checked && newItemIds.has(entry.itemId))
-        .map((entry) => ({ itemId: newItemIds.get(entry.itemId)!, checked: true }));
+      const progressToCreate = [
+        ...new Map(
+          (migrateGuestTrip?.progress ?? [])
+            .filter((entry) => entry.checked && newItemIds.has(entry.itemId) && entry.person < tripDetails.groupSize)
+            .map((entry) => [
+              `${entry.itemId}:${entry.person}`,
+              { itemId: newItemIds.get(entry.itemId)!, person: entry.person, checked: true },
+            ]),
+        ).values(),
+      ];
 
       const trip = await prisma.trip.create({
         data: {

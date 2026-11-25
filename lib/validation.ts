@@ -7,6 +7,7 @@ import {
   MAX_DURATION_DAYS,
   MAX_GROUP_SIZE,
   MAX_QUANTITY,
+  MAX_TRAVELER_NAME,
   TRANSPORTS,
 } from './trip-options';
 
@@ -35,6 +36,7 @@ export const tripDetailsSchema = z
     activities: z.array(z.enum(ACTIVITIES)).min(1).max(ACTIVITIES.length),
     accommodation: z.enum(ACCOMMODATIONS),
     groupSize: z.number().int().min(1).max(MAX_GROUP_SIZE),
+    travelers: z.array(z.string().trim().max(MAX_TRAVELER_NAME)).max(MAX_GROUP_SIZE).optional(),
     includesChildren: z.boolean(),
     specialNeeds: z.array(z.string().trim().min(1).max(150)).max(10),
   })
@@ -60,18 +62,23 @@ export const packingItemInputSchema = z.object({
   notes: z.string().trim().max(300).nullish(),
 });
 
+// Index of the traveler who ticked an item; shared items and older trips use 0
+const personSchema = z.number().int().min(0).max(MAX_GROUP_SIZE - 1);
+
 export const guestTripMigrationSchema = z.object({
   items: z
     .array(packingItemInputSchema.extend({ id: z.string().max(100), aiSuggested: z.boolean().optional() }))
     .min(1)
     .max(200),
   progress: z
-    .array(z.object({ itemId: z.string().max(100), checked: z.boolean() }))
-    .max(200)
+    .array(z.object({ itemId: z.string().max(100), person: personSchema.default(0), checked: z.boolean() }))
+    .max(200 * MAX_GROUP_SIZE)
     .default([]),
 });
 
 export const progressUpdateSchema = z.object({
   itemId: z.string().min(1).max(100),
+  // The travelers whose tick changes; ticking an item for everyone sends them all
+  persons: z.array(personSchema).min(1).max(MAX_GROUP_SIZE).default([0]),
   checked: z.boolean(),
 });

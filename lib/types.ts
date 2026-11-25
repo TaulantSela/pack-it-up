@@ -25,6 +25,8 @@ export interface TripDetails {
   activities: string[];
   accommodation: (typeof ACCOMMODATIONS)[number];
   groupSize: number;
+  // Optional names, one per person, for per-person ticks. Never sent to the AI
+  travelers?: string[];
   includesChildren: boolean;
   specialNeeds: string[];
 }

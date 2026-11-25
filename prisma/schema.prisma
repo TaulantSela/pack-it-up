@@ -38,6 +38,9 @@ model Trip {
   activities  String   // JSON string of activities
   accommodation String
   groupSize   Int
+  // JSON array of traveler names ("" when not given), one per person. Null for trips created
+  // before per-person ticks; those keep one tick per item
+  travelers   String?
   includesChildren Boolean
   specialNeeds String  // JSON string of special needs
   createdAt   DateTime @default(now())
@@ -67,6 +70,8 @@ model PackingItem {
 model PackingProgress {
   id        String   @id @default(cuid())
   itemId    String
+  // Which traveler ticked it (index into Trip.travelers). Shared items and older trips use 0
+  person    Int      @default(0)
   checked   Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -74,5 +79,5 @@ model PackingProgress {
   trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
   tripId    String
 
-  @@unique([tripId, itemId])
+  @@unique([tripId, itemId, person])
 }
