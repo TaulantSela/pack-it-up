@@ -106,23 +106,22 @@ export async function POST(request: NextRequest) {
     };
 
     if (userId) {
-      const clerkUser = await currentUser();
-      const primaryEmail = clerkUser?.emailAddresses.find((email) => email.id === clerkUser.primaryEmailAddressId);
-      const userEmail = primaryEmail?.emailAddress || clerkUser?.emailAddresses[0]?.emailAddress || null;
-
+      // The email is only stored when the account's row is created, so Clerk is asked just once
       try {
-        await prisma.user.upsert({
-          where: { id: userId },
-          update: {
-            email: userEmail,
-          },
-          create: {
-            id: userId,
-            email: userEmail,
-          },
-        });
+        const existingUser = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+        if (!existingUser) {
+          const clerkUser = await currentUser();
+          const primaryEmail = clerkUser?.emailAddresses.find((email) => email.id === clerkUser.primaryEmailAddressId);
+          const userEmail = primaryEmail?.emailAddress || clerkUser?.emailAddresses[0]?.emailAddress || null;
+          // upsert, in case two first requests race
+          await prisma.user.upsert({
+            where: { id: userId },
+            update: {},
+            create: { id: userId, email: userEmail },
+          });
+        }
       } catch (userError) {
-        console.error('Error creating/updating user:', userError);
+        console.error('Error creating user:', userError);
         return NextResponse.json({ success: false, error: 'Failed to create user account' }, { status: 500 });
       }
 
