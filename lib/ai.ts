@@ -6,6 +6,9 @@ import { Transport, TripContext } from './types';
 
 // Free on the Gemini API free tier. Override with AI_MODEL when Google retires it.
 const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
+// Google answers 503 "high demand" for one model at a time at busy hours, so a failed
+// model hands the trip to the next one before the rule-based list is used.
+const BACKUP_MODELS = ['gemini-3.5-flash', 'gemini-flash-lite-latest'];
 const MIN_AI_ITEMS = 10;
 const MAX_ITEMS = 60;
 
@@ -44,37 +47,48 @@ export async function generatePackingSuggestions(tripDetails: TripContext): Prom
     return { items: generateFallbackSuggestions(tripDetails), source: 'fallback' };
   }
 
-  try {
-    const { output } = await generateText({
-      model: google(process.env.AI_MODEL || DEFAULT_MODEL),
-      system:
-        'You are an expert travel planner and packing specialist. You write specific, practical packing lists tailored to the destination, the weather, the activities, how the traveler gets there and where they live.',
-      prompt: createPrompt(tripDetails),
-      output: Output.object({ schema: packingListSchema }),
-      reasoning: 'minimal',
-      maxRetries: 1,
-      timeout: 25_000,
-    });
+  const primaryModel = process.env.AI_MODEL || DEFAULT_MODEL;
+  const models = [primaryModel, ...BACKUP_MODELS.filter((model) => model !== primaryModel)];
 
-    const items = mergeDuplicates(
-      output.items.map((item) => ({
-        ...item,
-        name: item.name.trim().slice(0, 100),
-        notes: item.notes.trim().slice(0, 300) || undefined,
-        quantity: Math.min(Math.max(Math.round(item.quantity), 1), MAX_QUANTITY),
-        aiSuggested: true,
-      })),
-    ).filter((item) => item.name);
-
-    if (items.length < MIN_AI_ITEMS) {
-      throw new Error(`AI returned only ${items.length} items`);
+  for (const model of models) {
+    try {
+      return { items: await generateWithModel(model, tripDetails), source: 'ai' };
+    } catch (error) {
+      console.error(`AI generation with ${model} failed:`, error);
     }
-
-    return { items: items.slice(0, MAX_ITEMS), source: 'ai' };
-  } catch (error) {
-    console.error('AI generation failed, using fallback:', error);
-    return { items: generateFallbackSuggestions(tripDetails), source: 'fallback' };
   }
+
+  console.error('Every AI model failed, using fallback');
+  return { items: generateFallbackSuggestions(tripDetails), source: 'fallback' };
+}
+
+async function generateWithModel(model: string, tripDetails: TripContext): Promise<SuggestedItem[]> {
+  const { output } = await generateText({
+    model: google(model),
+    system:
+      'You are an expert travel planner and packing specialist. You write specific, practical packing lists tailored to the destination, the weather, the activities, how the traveler gets there and where they live.',
+    prompt: createPrompt(tripDetails),
+    output: Output.object({ schema: packingListSchema }),
+    reasoning: 'minimal',
+    maxRetries: 1,
+    timeout: 25_000,
+  });
+
+  const items = mergeDuplicates(
+    output.items.map((item) => ({
+      ...item,
+      name: item.name.trim().slice(0, 100),
+      notes: item.notes.trim().slice(0, 300) || undefined,
+      quantity: Math.min(Math.max(Math.round(item.quantity), 1), MAX_QUANTITY),
+      aiSuggested: true,
+    })),
+  ).filter((item) => item.name);
+
+  if (items.length < MIN_AI_ITEMS) {
+    throw new Error(`AI returned only ${items.length} items`);
+  }
+
+  return items.slice(0, MAX_ITEMS);
 }
 
 function describeTransport(transport: Transport): string {
