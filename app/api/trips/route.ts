@@ -3,7 +3,7 @@ import { parseDate } from '@/lib/dates';
 import { prisma } from '@/lib/db';
 import { getClientIp, isRateLimited } from '@/lib/rate-limit';
 import { normalizeTravelers } from '@/lib/travelers';
-import { buildTripContext } from '@/lib/trip-context';
+import { buildTripContext, tripContextFromSaved } from '@/lib/trip-context';
 import { pluralize } from '@/lib/utils';
 import { guestTripMigrationSchema, tripDetailsSchema } from '@/lib/validation';
 import { auth, currentUser } from '@clerk/nextjs/server';
@@ -72,8 +72,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Duration, season and weather come from the dates and destination
-    const tripContext = await buildTripContext(tripDetails);
+    // Duration, season and weather come from the dates and destination; a guest list moving to an
+    // account brings the ones it already has
+    const tripContext = migrateGuestTrip?.context
+      ? tripContextFromSaved(tripDetails, migrateGuestTrip.context)
+      : await buildTripContext(tripDetails);
 
     if (migrateGuestTrip) {
       suggestionItems = migrateGuestTrip.items;
