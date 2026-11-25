@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.114",
+    "@ai-sdk/groq": "^4.0.86",
     "@clerk/nextjs": "^6.34.4",
     "@prisma/client": "^6.13.0",
     "ai": "^7.0.166",

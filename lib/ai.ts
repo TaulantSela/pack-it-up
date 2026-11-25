@@ -1,5 +1,6 @@
 import { google } from '@ai-sdk/google';
-import { generateText, Output } from 'ai';
+import { groq } from '@ai-sdk/groq';
+import { APICallError, generateText, type LanguageModel, Output } from 'ai';
 import { z } from 'zod';
 import { CATEGORIES, MAX_QUANTITY } from './trip-options';
 import { Transport, TripContext } from './types';
@@ -10,10 +11,15 @@ const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 // ones like a full list, so models race for each list (see raceModels).
 // Starts at the same time as the main model
 const SECOND_MODEL = 'gemini-flash-lite-latest';
+// Groq's free tier isn't busy when Google's is, but allows only a few dozen lists a day, so it
+// joins when the Gemini models have failed, or have not answered after GROQ_JOIN_MS.
+// Groq retires models every few months: override with GROQ_MODEL.
+const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b';
+const GROQ_JOIN_MS = 10_000;
 // Answers most often at busy hours, but the free tier allows it only 20 requests a day, so it
-// joins when the other models have failed, or have not answered after BACKUP_JOIN_MS
-const BACKUP_MODEL = 'gemini-3.5-flash';
-const BACKUP_JOIN_MS = 10_000;
+// comes last: when everything running has failed, or nothing has answered after FLASH_JOIN_MS
+const FLASH_MODEL = 'gemini-3.5-flash';
+const FLASH_JOIN_MS = 15_000;
 // After this the rule-based list is used
 const RACE_TIMEOUT_MS = 45_000;
 const MIN_AI_ITEMS = 10;
@@ -50,22 +56,13 @@ const packingListSchema = z.object({
 });
 
 export async function generatePackingSuggestions(tripDetails: TripContext): Promise<PackingSuggestions> {
-  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  const entries = raceEntries(tripDetails);
+  if (!entries.length) {
     return { items: generateFallbackSuggestions(tripDetails), source: 'fallback' };
   }
 
-  const entries: RaceEntry[] = [
-    { model: process.env.AI_MODEL || DEFAULT_MODEL, joinAfterMs: 0 },
-    { model: SECOND_MODEL, joinAfterMs: 0 },
-    { model: BACKUP_MODEL, joinAfterMs: BACKUP_JOIN_MS },
-  ];
-
   try {
-    const items = await raceModels(
-      entries.filter((entry, index) => entries.findIndex((other) => other.model === entry.model) === index),
-      (model, abortSignal) => generateWithModel(model, tripDetails, abortSignal),
-    );
-    return { items, source: 'ai' };
+    return { items: await raceModels(entries), source: 'ai' };
   } catch (error) {
     console.error('No AI list, using fallback:', error);
     return { items: generateFallbackSuggestions(tripDetails), source: 'fallback' };
@@ -73,16 +70,35 @@ export async function generatePackingSuggestions(tripDetails: TripContext): Prom
 }
 
 interface RaceEntry {
-  model: string;
+  name: string;
   joinAfterMs: number;
+  run: (abortSignal: AbortSignal) => Promise<SuggestedItem[]>;
 }
 
-// Each model joins after its delay, or as soon as every model running has failed. The first
-// good list wins and the requests still running are cancelled.
-function raceModels(
-  entries: RaceEntry[],
-  run: (model: string, abortSignal: AbortSignal) => Promise<SuggestedItem[]>,
-): Promise<SuggestedItem[]> {
+// The models that have an API key, in the order they join the race
+function raceEntries(tripDetails: TripContext): RaceEntry[] {
+  const entry = (name: string, model: LanguageModel, joinAfterMs: number, reasoning: Reasoning): RaceEntry => ({
+    name,
+    joinAfterMs,
+    run: (abortSignal) => generateWithModel(model, reasoning, tripDetails, abortSignal),
+  });
+  const gemini = (model: string, joinAfterMs: number) => entry(model, google(model), joinAfterMs, 'minimal');
+  const hasGemini = Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+  const groqModel = process.env.GROQ_MODEL || DEFAULT_GROQ_MODEL;
+
+  const entries = [
+    ...(hasGemini ? [gemini(process.env.AI_MODEL || DEFAULT_MODEL, 0), gemini(SECOND_MODEL, 0)] : []),
+    // gpt-oss can't reason less than 'low'
+    ...(process.env.GROQ_API_KEY ? [entry(`groq ${groqModel}`, groq(groqModel), GROQ_JOIN_MS, 'low')] : []),
+    ...(hasGemini ? [gemini(FLASH_MODEL, FLASH_JOIN_MS)] : []),
+  ];
+  // AI_MODEL may name one of the other models
+  return entries.filter((e, index) => entries.findIndex((other) => other.name === e.name) === index);
+}
+
+// The first model starts at once. Each other model joins after its delay, or as soon as every
+// model running has failed. The first good list wins and the requests still running are cancelled.
+function raceModels(entries: RaceEntry[]): Promise<SuggestedItem[]> {
   const race = new AbortController();
   const signal = race.signal;
   // Ends the race when the time runs out
@@ -105,10 +121,10 @@ function raceModels(
       waiting.splice(index, 1);
       running++;
 
-      run(entry.model, signal).then(resolve, (error) => {
+      entry.run(signal).then(resolve, (error) => {
         running--;
         if (signal.aborted) return;
-        console.error(`AI generation with ${entry.model} failed:`, error);
+        console.error(`AI generation with ${entry.name} failed:`, error);
         if (running > 0) return;
         if (waiting.length) {
           start(waiting[0]);
@@ -118,33 +134,46 @@ function raceModels(
       });
     };
 
-    for (const entry of entries) {
-      if (entry.joinAfterMs > 0) {
-        timers.push(setTimeout(() => start(entry), entry.joinAfterMs));
-      } else {
+    entries.forEach((entry, index) => {
+      if (index === 0 || entry.joinAfterMs === 0) {
         start(entry);
+      } else {
+        timers.push(setTimeout(() => start(entry), entry.joinAfterMs));
       }
-    }
+    });
   }).finally(() => {
     race.abort();
     timers.forEach(clearTimeout);
   });
 }
 
+type Reasoning = Parameters<typeof generateText>[0]['reasoning'];
+
+const isFailedGeneration = (error: unknown) =>
+  APICallError.isInstance(error) && error.statusCode === 400 && Boolean(error.responseBody?.includes('failed_generation'));
+
 async function generateWithModel(
-  model: string,
+  model: LanguageModel,
+  reasoning: Reasoning,
   tripDetails: TripContext,
   abortSignal: AbortSignal,
 ): Promise<SuggestedItem[]> {
-  const { output } = await generateText({
-    model: google(model),
-    system:
-      'You are an expert travel planner and packing specialist. You write specific, practical packing lists tailored to the destination, the weather, the activities, how the traveler gets there and where they live.',
-    prompt: createPrompt(tripDetails),
-    output: Output.object({ schema: packingListSchema }),
-    reasoning: 'minimal',
-    maxRetries: 1,
-    abortSignal,
+  const generate = () =>
+    generateText({
+      model,
+      system:
+        'You are an expert travel planner and packing specialist. You write specific, practical packing lists tailored to the destination, the weather, the activities, how the traveler gets there and where they live.',
+      prompt: createPrompt(tripDetails),
+      output: Output.object({ schema: packingListSchema }),
+      reasoning,
+      maxRetries: 1,
+      abortSignal,
+    });
+  // Groq checks the model's JSON itself and answers 400 with a failed_generation when it doesn't
+  // fit the schema; the AI SDK doesn't retry a 400, but a second try usually works
+  const { output } = await generate().catch((error) => {
+    if (isFailedGeneration(error) && !abortSignal.aborted) return generate();
+    throw error;
   });
 
   const items = mergeDuplicates(
@@ -216,7 +245,8 @@ GUIDELINES:
 6. Scale clothing to the trip length, and assume laundry on trips longer than a week.
 7. Include items for children and for anything else the traveler mentioned.
 8. Return 25 to 50 items. Keep names short and put the reason or tip in the notes.
-9. Mark an item essential only when the trip can't go ahead without it.`;
+9. Mark an item essential only when the trip can't go ahead without it.
+10. Use only these categories: ${CATEGORIES.join(', ')}. Money, cards and currency go under documents.`;
 }
 
 type FallbackItem = Omit<SuggestedItem, 'aiSuggested'>;
