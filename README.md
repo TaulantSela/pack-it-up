@@ -109,6 +109,11 @@ npx prisma db push      # create the tables
 npm run dev             # http://localhost:3000
 ```
 
+Production has its own database. Preview deployments use a separate dev
+database, `pack-it-up-dev`; put its `DATABASE_URL` (the project's Development
+environment on Vercel) in `.env`, so nothing you run locally reaches production
+data.
+
 | Variable | |
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
