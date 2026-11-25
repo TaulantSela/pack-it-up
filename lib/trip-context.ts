@@ -32,6 +32,21 @@ function climateFor(weather: WeatherSummary | null): string {
   return 'hot';
 }
 
+// For a guest list moving to an account: the guest trip already has its weather and season, so
+// nothing is looked up again
+export function tripContextFromSaved(
+  details: TripDetails,
+  saved: { weather: WeatherSummary | null; season: Season },
+): TripContext {
+  return {
+    ...details,
+    duration: tripLength(details.startDate, details.endDate),
+    season: saved.season,
+    climate: climateFor(saved.weather),
+    weather: saved.weather,
+  };
+}
+
 // Works out what the form no longer asks for. Weather is best effort, the list still works without it.
 export async function buildTripContext(details: TripDetails): Promise<TripContext> {
   const duration = tripLength(details.startDate, details.endDate);

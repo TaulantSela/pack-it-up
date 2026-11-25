@@ -252,6 +252,8 @@ export default function Home() {
               person: entry.person ?? 0,
               checked: entry.checked,
             })),
+            // Reuse the weather the guest list already has instead of looking it up again
+            context: { weather: parseWeather(saved.trip.weather), season: saved.trip.season },
           },
         }),
       });

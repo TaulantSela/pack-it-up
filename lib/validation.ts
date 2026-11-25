@@ -8,6 +8,7 @@ import {
   MAX_GROUP_SIZE,
   MAX_QUANTITY,
   MAX_TRAVELER_NAME,
+  SEASONS,
   TRANSPORTS,
 } from './trip-options';
 
@@ -62,6 +63,21 @@ export const packingItemInputSchema = z.object({
   notes: z.string().trim().max(300).nullish(),
 });
 
+const temperature = z.number().min(-90).max(60);
+const dayCount = z.number().int().min(0).max(MAX_DURATION_DAYS + 1);
+
+const weatherSummarySchema = z.object({
+  place: z.string().max(150),
+  kind: z.enum(['forecast', 'typical']),
+  days: dayCount,
+  avgHigh: temperature,
+  avgLow: temperature,
+  maxHigh: temperature,
+  minLow: temperature,
+  rainyDays: dayCount,
+  snowyDays: dayCount,
+});
+
 // Index of the traveler who ticked an item; shared items and older trips use 0
 const personSchema = z.number().int().min(0).max(MAX_GROUP_SIZE - 1);
 
@@ -74,6 +90,12 @@ export const guestTripMigrationSchema = z.object({
     .array(z.object({ itemId: z.string().max(100), person: personSchema.default(0), checked: z.boolean() }))
     .max(200 * MAX_GROUP_SIZE)
     .default([]),
+  // The guest trip's weather and season, so moving it to an account doesn't look them up again.
+  // Anything off is dropped, and the server looks them up as before
+  context: z
+    .object({ weather: weatherSummarySchema.nullable(), season: z.enum(SEASONS) })
+    .optional()
+    .catch(undefined),
 });
 
 export const progressUpdateSchema = z.object({
