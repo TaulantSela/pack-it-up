@@ -10,16 +10,16 @@ preview a list.
 Generic packing lists don't know that it will rain on four of your six days,
 that you're flying carry-on only, or that you need a plug adapter for the
 country you're visiting. Pack It Up looks up the weather for your trip and
-asks Google Gemini for a list written for it. If the AI is unavailable, a
-rule-based list takes over, so you always get one.
+asks Google Gemini, with Groq as a backup, for a list written for it. If the
+AI is unavailable, a rule-based list takes over, so you always get one.
 
 ## Features
 
 | | |
 |---|---|
 | **Real weather** | The [Open-Meteo](https://open-meteo.com/) forecast when the whole trip falls within the next 16 days, otherwise the typical weather for the same dates over the last three years |
-| **AI lists** | Gemini, through the Vercel AI SDK, returns a structured list (checked with Zod): category, quantity, essential flag and a one-line tip per item |
-| **Rule-based fallback** | Several Gemini models race for each list, so one busy model doesn't matter. No API key, or every model failing (timeout, error or thin answer), falls back to a built-in list that covers weather, transport, activities, accommodation, children and your notes. The page tells you when this happens |
+| **AI lists** | Gemini (or Groq when Gemini is busy), through the Vercel AI SDK, returns a structured list (checked with Zod): category, quantity, essential flag and a one-line tip per item |
+| **Rule-based fallback** | Several models from two providers race for each list, so one busy model doesn't matter. No API key, or every model failing (timeout, error or thin answer), falls back to a built-in list that covers weather, transport, activities, accommodation, children and your notes. The page tells you when this happens |
 | **Home vs destination** | Crossing a border adds passport, visa or entry-authorization reminders, a plug adapter and local currency; a domestic trip gets an ID card instead |
 | **Luggage-aware** | Carry-on only means 100 ml liquids and fewer clothes; car and train/bus trips get what the journey itself needs |
 | **Place suggestions** | Home city and destination suggest towns, islands and countries as you type |
@@ -66,10 +66,12 @@ Open [packitup.vercel.app](https://packitup.vercel.app) and fill in the form:
    `generateText` and a Zod output schema, then clamps quantities, merges
    duplicates and caps the list at 60 items. At peak hours Gemini's free tier
    answers 503 to many requests, so models race: the main model and
-   `SECOND_MODEL` start together, and `BACKUP_MODEL` (only 20 free requests a
-   day) joins when both have failed or after 10 seconds. The first list with
-   at least 10 items wins. When every model fails, after 45 seconds, or with no
-   API key, the rule-based fallback in the same file takes over.
+   `SECOND_MODEL` start together; Groq (free tier, a few dozen lists a day)
+   joins when both have failed or after 10 seconds; `FLASH_MODEL` (only 20 free
+   requests a day) comes last, when everything running has failed or after 15
+   seconds. The first list with at least 10 items wins. When every model fails,
+   after 45 seconds, or with no API key, the rule-based fallback in the same
+   file takes over.
 5. Signed-in users (Clerk) get the trip, items and progress saved to
    PostgreSQL through Prisma. Guests get the list back unsaved; it lives in
    `sessionStorage` until they sign in, when it is copied to their account.
@@ -130,6 +132,8 @@ COMMENT ON DATABASE neondb IS 'pack-it-up:disposable';
 | `DATABASE_URL` | PostgreSQL connection string |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | Free key from [Google AI Studio](https://aistudio.google.com/apikey). Without it, every list comes from the fallback |
 | `AI_MODEL` | Optional. Another Gemini model ID; the default is set in `lib/ai.ts` |
+| `GROQ_API_KEY` | Optional. Free key from [GroqCloud](https://console.groq.com/keys) for the backup model. Turn on Zero Data Retention in its Data Controls |
+| `GROQ_MODEL` | Optional. Another Groq model ID, for when Groq retires the default in `lib/ai.ts` |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | From your Clerk application |
 | `CLERK_SECRET_KEY` | From your Clerk application |
 
@@ -139,7 +143,7 @@ Other scripts: `npm run build`, `npm start`, `npm run lint`.
 
 - **New activity:** add it to `ACTIVITIES` in `lib/trip-options.ts`, then give
   it fallback items in `generateFallbackSuggestions` in `lib/ai.ts`.
-- **Another model:** set `AI_MODEL`, or change `DEFAULT_MODEL`, `SECOND_MODEL` or `BACKUP_MODEL` in `lib/ai.ts`.
+- **Another model:** set `AI_MODEL` or `GROQ_MODEL`, or change the model constants at the top of `lib/ai.ts`.
 - **Schema changes:** the database is managed with `prisma db push`, so run
   `npx prisma db push` after editing `prisma/schema.prisma`.
 
