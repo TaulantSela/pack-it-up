@@ -12,8 +12,8 @@ import { PackingItem, Transport, TripDetails, WeatherSummary } from '@/lib/types
 import { pluralize } from '@/lib/utils';
 import { describeWeather } from '@/lib/weather';
 import { SignInButton, SignUpButton, UserButton, useUser } from '@clerk/nextjs';
-import { Calendar, CloudSun, History, Info, Luggage, MapPin, Sparkles, Users, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Calendar, CloudSun, History, Info, Loader2, Luggage, MapPin, Sparkles, Users, X } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 interface Trip {
   id: string;
@@ -57,6 +57,7 @@ export default function Home() {
   const [showHistory, setShowHistory] = useState(false);
   const [authPromptVisible, setAuthPromptVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSavingGuestTrip, setIsSavingGuestTrip] = useState(false);
   const hasMigratedSession = useRef(false);
   const previousSignedIn = useRef(isSignedIn);
   const [guestTripDetails, setGuestTripDetails] = useState<TripDetails | null>(null);
@@ -202,7 +203,9 @@ export default function Home() {
     }
   }, [isSignedIn]);
 
-  useEffect(() => {
+  // Layout effects run before the browser paints, so a restored or migrating list never shows the
+  // empty form for a frame in between
+  useLayoutEffect(() => {
     if (!isLoaded || isSignedIn) {
       return;
     }
@@ -223,6 +226,7 @@ export default function Home() {
 
     try {
       hasMigratedSession.current = true;
+      setIsSavingGuestTrip(true);
       setIsLoading(true);
       setCurrentTrip(null);
       setShowHistory(false);
@@ -268,11 +272,12 @@ export default function Home() {
       hasMigratedSession.current = false;
       setErrorMessage('We couldn’t save your guest list to your account. Please generate it again.');
     } finally {
+      setIsSavingGuestTrip(false);
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isLoaded) {
       return;
     }
@@ -296,6 +301,8 @@ export default function Home() {
   }, [isSignedIn, isLoaded]);
 
   const isGuest = !isSignedIn;
+  // Right after signing in, the guest list is still on screen until it's saved to the account
+  const isSavingToAccount = isSavingGuestTrip || (isSignedIn && Boolean(currentTrip?.id.startsWith('guest-')));
   const weather = parseWeather(currentTrip?.weather);
   const travelerNames = (
     currentTrip ? (parseTravelers(currentTrip.travelers, currentTrip.groupSize) ?? []) : []
@@ -387,7 +394,22 @@ export default function Home() {
 
         {/* Main Content */}
         <div className="mx-auto max-w-6xl">
-          {!currentTrip ? (
+          {!isLoaded ? (
+            // Until we know whether you're signed in or have a guest list, show neither the form nor a list
+            <div className="card mx-auto max-w-4xl space-y-6" aria-busy="true" aria-label="Loading">
+              <div className="mx-auto h-8 w-2/3 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+              <div className="mx-auto h-4 w-1/2 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+              <div className="h-72 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+            </div>
+          ) : isSavingToAccount ? (
+            <div
+              role="status"
+              className="card mx-auto flex max-w-4xl items-center justify-center gap-3 py-16 text-gray-700 dark:text-gray-200"
+            >
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Saving your list to your account…</span>
+            </div>
+          ) : !currentTrip ? (
             <div className="card mx-auto max-w-4xl">
               <div className="mb-8 text-center">
                 <h2 className="mb-4 text-2xl font-semibold text-gray-900 dark:text-white">Tell us about your trip</h2>
