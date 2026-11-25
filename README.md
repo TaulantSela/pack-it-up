@@ -19,7 +19,7 @@ rule-based list takes over, so you always get one.
 |---|---|
 | **Real weather** | The [Open-Meteo](https://open-meteo.com/) forecast when the whole trip falls within the next 16 days, otherwise the typical weather for the same dates over the last three years |
 | **AI lists** | Gemini, through the Vercel AI SDK, returns a structured list (checked with Zod): category, quantity, essential flag and a one-line tip per item |
-| **Rule-based fallback** | A busy model hands off to a backup Gemini model first. No API key, or every model failing (timeout, error or thin answer), falls back to a built-in list that covers weather, transport, activities, accommodation, children and your notes. The page tells you when this happens |
+| **Rule-based fallback** | Several Gemini models race for each list, so one busy model doesn't matter. No API key, or every model failing (timeout, error or thin answer), falls back to a built-in list that covers weather, transport, activities, accommodation, children and your notes. The page tells you when this happens |
 | **Home vs destination** | Crossing a border adds passport, visa or entry-authorization reminders, a plug adapter and local currency; a domestic trip gets an ID card instead |
 | **Luggage-aware** | Carry-on only means 100 ml liquids and fewer clothes; car and train/bus trips get what the journey itself needs |
 | **Place suggestions** | Home city and destination suggest towns, islands and countries as you type |
@@ -64,10 +64,12 @@ Open [packitup.vercel.app](https://packitup.vercel.app) and fill in the form:
    without it.
 4. `lib/ai.ts` sends the trip and weather to Gemini with the AI SDK's
    `generateText` and a Zod output schema, then clamps quantities, merges
-   duplicates and caps the list at 60 items. Fewer than 10 items or an error
-   (Gemini answers 503 for a busy model at peak hours) hands the trip to the
-   next model in `BACKUP_MODELS`. When every model fails, or there is no API
-   key, the rule-based fallback in the same file takes over.
+   duplicates and caps the list at 60 items. At peak hours Gemini's free tier
+   answers 503 to many requests, so models race: the main model and
+   `SECOND_MODEL` start together, and `BACKUP_MODEL` (only 20 free requests a
+   day) joins when both have failed or after 10 seconds. The first list with
+   at least 10 items wins. When every model fails, after 45 seconds, or with no
+   API key, the rule-based fallback in the same file takes over.
 5. Signed-in users (Clerk) get the trip, items and progress saved to
    PostgreSQL through Prisma. Guests get the list back unsaved; it lives in
    `sessionStorage` until they sign in, when it is copied to their account.
@@ -128,7 +130,7 @@ Other scripts: `npm run build`, `npm start`, `npm run lint`.
 
 - **New activity:** add it to `ACTIVITIES` in `lib/trip-options.ts`, then give
   it fallback items in `generateFallbackSuggestions` in `lib/ai.ts`.
-- **Another model:** set `AI_MODEL`, or change `DEFAULT_MODEL` or `BACKUP_MODELS` in `lib/ai.ts`.
+- **Another model:** set `AI_MODEL`, or change `DEFAULT_MODEL`, `SECOND_MODEL` or `BACKUP_MODEL` in `lib/ai.ts`.
 - **Schema changes:** the database is managed with `prisma db push`, so run
   `npx prisma db push` after editing `prisma/schema.prisma`.
 

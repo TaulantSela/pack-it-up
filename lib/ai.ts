@@ -6,9 +6,16 @@ import { Transport, TripContext } from './types';
 
 // Free on the Gemini API free tier. Override with AI_MODEL when Google retires it.
 const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
-// Google answers 503 "high demand" for one model at a time at busy hours, so a failed
-// model hands the trip to the next one before the rule-based list is used.
-const BACKUP_MODELS = ['gemini-3.5-flash', 'gemini-flash-lite-latest'];
+// At busy hours Google answers 503 "high demand" to many free-tier requests, mostly larger
+// ones like a full list, so models race for each list (see raceModels).
+// Starts at the same time as the main model
+const SECOND_MODEL = 'gemini-flash-lite-latest';
+// Answers most often at busy hours, but the free tier allows it only 20 requests a day, so it
+// joins when the other models have failed, or have not answered after BACKUP_JOIN_MS
+const BACKUP_MODEL = 'gemini-3.5-flash';
+const BACKUP_JOIN_MS = 10_000;
+// After this the rule-based list is used
+const RACE_TIMEOUT_MS = 45_000;
 const MIN_AI_ITEMS = 10;
 const MAX_ITEMS = 60;
 
@@ -47,22 +54,88 @@ export async function generatePackingSuggestions(tripDetails: TripContext): Prom
     return { items: generateFallbackSuggestions(tripDetails), source: 'fallback' };
   }
 
-  const primaryModel = process.env.AI_MODEL || DEFAULT_MODEL;
-  const models = [primaryModel, ...BACKUP_MODELS.filter((model) => model !== primaryModel)];
+  const entries: RaceEntry[] = [
+    { model: process.env.AI_MODEL || DEFAULT_MODEL, joinAfterMs: 0 },
+    { model: SECOND_MODEL, joinAfterMs: 0 },
+    { model: BACKUP_MODEL, joinAfterMs: BACKUP_JOIN_MS },
+  ];
 
-  for (const model of models) {
-    try {
-      return { items: await generateWithModel(model, tripDetails), source: 'ai' };
-    } catch (error) {
-      console.error(`AI generation with ${model} failed:`, error);
-    }
+  try {
+    const items = await raceModels(
+      entries.filter((entry, index) => entries.findIndex((other) => other.model === entry.model) === index),
+      (model, abortSignal) => generateWithModel(model, tripDetails, abortSignal),
+    );
+    return { items, source: 'ai' };
+  } catch (error) {
+    console.error('No AI list, using fallback:', error);
+    return { items: generateFallbackSuggestions(tripDetails), source: 'fallback' };
   }
-
-  console.error('Every AI model failed, using fallback');
-  return { items: generateFallbackSuggestions(tripDetails), source: 'fallback' };
 }
 
-async function generateWithModel(model: string, tripDetails: TripContext): Promise<SuggestedItem[]> {
+interface RaceEntry {
+  model: string;
+  joinAfterMs: number;
+}
+
+// Each model joins after its delay, or as soon as every model running has failed. The first
+// good list wins and the requests still running are cancelled.
+function raceModels(
+  entries: RaceEntry[],
+  run: (model: string, abortSignal: AbortSignal) => Promise<SuggestedItem[]>,
+): Promise<SuggestedItem[]> {
+  const race = new AbortController();
+  const signal = race.signal;
+  // Ends the race when the time runs out
+  const timers = [setTimeout(() => race.abort(), RACE_TIMEOUT_MS)];
+
+  return new Promise<SuggestedItem[]>((resolve, reject) => {
+    const waiting = [...entries];
+    let running = 0;
+
+    // Fires when the time runs out; after a win it fires too, but the race is already settled
+    signal.addEventListener(
+      'abort',
+      () => reject(new Error(`No AI model answered within ${RACE_TIMEOUT_MS / 1000} s`)),
+      { once: true },
+    );
+
+    const start = (entry: RaceEntry) => {
+      const index = waiting.indexOf(entry);
+      if (index === -1 || signal.aborted) return;
+      waiting.splice(index, 1);
+      running++;
+
+      run(entry.model, signal).then(resolve, (error) => {
+        running--;
+        if (signal.aborted) return;
+        console.error(`AI generation with ${entry.model} failed:`, error);
+        if (running > 0) return;
+        if (waiting.length) {
+          start(waiting[0]);
+        } else {
+          reject(new Error('Every AI model failed'));
+        }
+      });
+    };
+
+    for (const entry of entries) {
+      if (entry.joinAfterMs > 0) {
+        timers.push(setTimeout(() => start(entry), entry.joinAfterMs));
+      } else {
+        start(entry);
+      }
+    }
+  }).finally(() => {
+    race.abort();
+    timers.forEach(clearTimeout);
+  });
+}
+
+async function generateWithModel(
+  model: string,
+  tripDetails: TripContext,
+  abortSignal: AbortSignal,
+): Promise<SuggestedItem[]> {
   const { output } = await generateText({
     model: google(model),
     system:
@@ -71,7 +144,7 @@ async function generateWithModel(model: string, tripDetails: TripContext): Promi
     output: Output.object({ schema: packingListSchema }),
     reasoning: 'minimal',
     maxRetries: 1,
-    timeout: 25_000,
+    abortSignal,
   });
 
   const items = mergeDuplicates(
