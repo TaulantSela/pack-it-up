@@ -500,6 +500,7 @@ export default function Home() {
               <PackingList
                 items={currentTrip.items}
                 tripId={currentTrip.id}
+                groupSize={currentTrip.groupSize}
                 isGuest={isGuest}
                 onRequireAuth={() => setAuthPromptVisible(true)}
                 initialCheckedIds={

@@ -240,7 +240,7 @@ GUIDELINES:
 1. Base clothing and gear on the weather above, plus local customs and the activities.
 2. Compare the traveler's home with the destination. Cover whether a passport, visa or entry authorization (such as ESTA, ETIAS or eTA) is likely needed, whether a plug adapter is needed and for which plug type, and which currency to carry. Visa rules depend on the traveler's passport, so tell them to confirm with official sources instead of stating rules as certain.
 3. Respect the luggage limits for how they are getting there.
-4. Quantities are per person for personal items. For items the group can share (tent, first aid kit, adapters), give one quantity for the whole group and say so in the notes.
+4. Quantities are per person for personal items. When the group is larger than one, items the group can share (tent, first aid kit, adapters) get one quantity for the whole group, and their note starts with "Shared:".
 5. Quantity is a count of things to pack, never an amount of money, volume or weight. Use 1 for documents, cash and most toiletries.
 6. Scale clothing to the trip length, and assume laundry on trips longer than a week.
 7. Include items for children and for anything else the traveler mentioned.
@@ -615,7 +615,7 @@ function generateFallbackSuggestions(tripDetails: TripContext): SuggestedItem[] 
         category: 'toiletries',
         essential: true,
         quantity: 1,
-        notes: groupSize > 1 ? 'One shared by the group' : 'Basic medical supplies',
+        notes: groupSize > 1 ? 'Shared: one for the whole group' : 'Basic medical supplies',
       },
     );
   }
@@ -660,7 +660,7 @@ function generateFallbackSuggestions(tripDetails: TripContext): SuggestedItem[] 
         category: 'other',
         essential: true,
         quantity: Math.ceil(groupSize / 2),
-        notes: groupSize > 1 ? 'One two-person tent for every two people' : 'Sleeping shelter',
+        notes: groupSize > 1 ? 'Shared: one two-person tent for every two people' : 'Sleeping shelter',
       },
       {
         name: 'Sleeping Bag',
@@ -675,7 +675,7 @@ function generateFallbackSuggestions(tripDetails: TripContext): SuggestedItem[] 
         category: 'other',
         essential: false,
         quantity: 1,
-        notes: groupSize > 1 ? 'One shared by the group' : 'Cooking equipment',
+        notes: groupSize > 1 ? 'Shared: one for the whole group' : 'Cooking equipment',
       },
       { name: 'Headlamp', category: 'accessories', essential: true, quantity: 1, notes: 'Hands-free lighting' },
       { name: 'Multi-tool', category: 'accessories', essential: false, quantity: 1, notes: 'Versatile tool' },
