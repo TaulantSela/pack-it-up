@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:push": "prisma generate && node --env-file-if-exists=.env scripts/require-dev-db.mjs && prisma db push"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.114",

@@ -105,7 +105,7 @@ git clone https://github.com/TaulantSela/pack-it-up.git
 cd pack-it-up
 npm install
 cp .env.example .env    # then fill it in
-npx prisma db push      # create the tables
+npm run db:push         # create the tables (dev database only, see below)
 npm run dev             # http://localhost:3000
 ```
 
@@ -113,6 +113,15 @@ Production has its own database. Preview deployments use a separate dev
 database, `pack-it-up-dev`; put its `DATABASE_URL` (the project's Development
 environment on Vercel) in `.env`, so nothing you run locally reaches production
 data.
+
+`npm run db:push` only runs on a database marked as a disposable dev database
+([`scripts/require-dev-db.mjs`](scripts/require-dev-db.mjs)), so it can't
+rewrite the production schema. `pack-it-up-dev` is marked; to mark a new dev
+database (never production), run this once against it, e.g. in Neon's SQL editor:
+
+```sql
+COMMENT ON DATABASE neondb IS 'pack-it-up:disposable';
+```
 
 | Variable | |
 |---|---|
