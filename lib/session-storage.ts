@@ -4,6 +4,8 @@ const SESSION_KEY = 'pack-it-up-current-trip';
 
 export type GuestProgressEntry = {
   itemId: string;
+  // Missing in sessions saved before per-person ticks; means 0
+  person?: number;
   checked: boolean;
 };
 
@@ -23,6 +25,7 @@ export type GuestTripSession = {
     activities: string;
     accommodation: string;
     groupSize: number;
+    travelers?: string | null;
     includesChildren: boolean;
     specialNeeds: string;
     createdAt: string;

@@ -12,12 +12,14 @@ import {
   ACTIVITIES,
   MAX_DURATION_DAYS,
   MAX_GROUP_SIZE,
+  MAX_TRAVELER_NAME,
   TRANSPORT_LABELS,
   TRANSPORTS,
 } from '@/lib/trip-options';
+import { MAX_TICKED_TRAVELERS } from '@/lib/travelers';
 import { Place, TripDetails } from '@/lib/types';
 import { pluralize } from '@/lib/utils';
-import { Baby, Calendar, Car, Home, MapPin, MessageSquare, Navigation, Plane, Users } from 'lucide-react';
+import { Baby, Calendar, Car, Home, MapPin, MessageSquare, Navigation, Plane, UserRound, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface TripFormProps {
@@ -48,9 +50,13 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false, disable
     activities: [],
     accommodation: 'hotel',
     groupSize: 1,
+    travelers: [],
     includesChildren: false,
     specialNeeds: [],
   });
+  const groupSize = formData.groupSize ?? 1;
+  // Names label the per-person ticks; bigger groups get a counter instead
+  const asksForNames = groupSize > 1 && groupSize <= MAX_TICKED_TRAVELERS;
 
   const [specialNeed, setSpecialNeed] = useState('');
 
@@ -115,6 +121,9 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false, disable
       ...(formData as TripDetails),
       origin: formData.origin!.trim(),
       destination: formData.destination!.trim(),
+      travelers: asksForNames
+        ? Array.from({ length: groupSize }, (_, i) => formData.travelers?.[i]?.trim() ?? '')
+        : [],
     });
   };
 
@@ -233,6 +242,33 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false, disable
           required
         />
       </div>
+
+      {asksForNames && (
+        <FormField icon={{ name: UserRound }} label={{ name: 'Who’s going? (optional)' }}>
+          <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">
+            Everyone gets their own tick on personal items, like passports and clothes.
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: groupSize }, (_, i) => (
+              <Input
+                key={i}
+                value={formData.travelers?.[i] ?? ''}
+                onChange={(e) =>
+                  setFormData((prev) => {
+                    const travelers = Array.from({ length: groupSize }, (_, j) => prev.travelers?.[j] ?? '');
+                    travelers[i] = e.target.value;
+                    return { ...prev, travelers };
+                  })
+                }
+                placeholder={`Person ${i + 1}`}
+                aria-label={`Name of person ${i + 1}`}
+                maxLength={MAX_TRAVELER_NAME}
+                withFormField={false}
+              />
+            ))}
+          </div>
+        </FormField>
+      )}
 
       {/* Activities */}
 

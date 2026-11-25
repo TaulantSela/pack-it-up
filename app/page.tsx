@@ -6,6 +6,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import TripForm from '@/components/trip-form';
 import { formatDateRange } from '@/lib/dates';
 import { clearGuestTripSession, loadGuestTripSession, saveGuestTripSession } from '@/lib/session-storage';
+import { parseTravelers, tickKey } from '@/lib/travelers';
 import { TRANSPORT_LABELS } from '@/lib/trip-options';
 import { PackingItem, Transport, TripDetails, WeatherSummary } from '@/lib/types';
 import { pluralize } from '@/lib/utils';
@@ -29,12 +30,13 @@ interface Trip {
   activities: string;
   accommodation: string;
   groupSize: number;
+  travelers?: string | null;
   includesChildren: boolean;
   specialNeeds: string;
   createdAt: string;
   updatedAt: string;
   items: PackingItem[];
-  progress?: { itemId: string; checked: boolean }[];
+  progress?: { itemId: string; person?: number; checked: boolean }[];
   userId?: string | null;
   source?: 'ai' | 'fallback';
 }
@@ -139,7 +141,7 @@ export default function Home() {
     }
   };
 
-  const handleGuestToggleItem = (itemId: string, checked: boolean) => {
+  const handleGuestToggleItem = (itemId: string, persons: number[], checked: boolean) => {
     if (isSignedIn) {
       return;
     }
@@ -152,8 +154,12 @@ export default function Home() {
       }
 
       const existingProgress = previous.progress ?? [];
-      const remaining = existingProgress.filter((entry) => entry.itemId !== itemId);
-      const nextProgress = checked ? [...remaining, { itemId, checked: true }] : remaining;
+      const remaining = existingProgress.filter(
+        (entry) => entry.itemId !== itemId || !persons.includes(entry.person ?? 0),
+      );
+      const nextProgress = checked
+        ? [...remaining, ...persons.map((person) => ({ itemId, person, checked: true }))]
+        : remaining;
       const nextTrip = { ...previous, progress: nextProgress };
 
       const tripDetailsForSession = guestTripDetails ?? existingSession?.tripDetails ?? null;
@@ -239,6 +245,7 @@ export default function Home() {
             })),
             progress: (saved.trip.progress ?? []).map((entry) => ({
               itemId: entry.itemId,
+              person: entry.person ?? 0,
               checked: entry.checked,
             })),
           },
@@ -290,6 +297,9 @@ export default function Home() {
 
   const isGuest = !isSignedIn;
   const weather = parseWeather(currentTrip?.weather);
+  const travelerNames = (
+    currentTrip ? (parseTravelers(currentTrip.travelers, currentTrip.groupSize) ?? []) : []
+  ).filter(Boolean);
 
   const handleOpenHistory = () => {
     if (!isSignedIn) {
@@ -447,6 +457,11 @@ export default function Home() {
                     <Users className="text-primary-600 dark:text-primary-400 h-5 w-5 shrink-0" />
                     <span className="text-gray-800 dark:text-gray-100">
                       <strong>Group Size:</strong> {pluralize(currentTrip.groupSize, 'person', 'people')}
+                      {travelerNames.length > 0 && (
+                        <span className="block text-sm text-gray-600 dark:text-gray-300">
+                          {travelerNames.join(', ')}
+                        </span>
+                      )}
                       {currentTrip.transport && (
                         <span className="block text-sm text-gray-600 dark:text-gray-300">
                           {TRANSPORT_LABELS[currentTrip.transport as Transport] ?? currentTrip.transport}
@@ -501,10 +516,13 @@ export default function Home() {
                 items={currentTrip.items}
                 tripId={currentTrip.id}
                 groupSize={currentTrip.groupSize}
+                travelers={currentTrip.travelers}
                 isGuest={isGuest}
                 onRequireAuth={() => setAuthPromptVisible(true)}
-                initialCheckedIds={
-                  currentTrip.progress?.filter((entry) => entry.checked).map((entry) => entry.itemId) ?? []
+                initialTicks={
+                  currentTrip.progress
+                    ?.filter((entry) => entry.checked)
+                    .map((entry) => tickKey(entry.itemId, entry.person ?? 0)) ?? []
                 }
                 onGuestToggleItem={isGuest ? handleGuestToggleItem : undefined}
                 onGuestResetProgress={isGuest ? handleGuestResetProgress : undefined}

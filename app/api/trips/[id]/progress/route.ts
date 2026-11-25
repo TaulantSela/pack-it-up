@@ -19,6 +19,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const { itemId, checked } = parsed.data;
+    const persons = [...new Set(parsed.data.persons)];
 
     // Verify trip ownership and that the item belongs to the trip
     const trip = await prisma.trip.findFirst({
@@ -38,23 +39,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
     }
 
-    const progress = await prisma.packingProgress.upsert({
-      where: {
-        tripId_itemId: {
-          tripId: id,
-          itemId: itemId,
-        },
-      },
-      update: {
-        checked: checked,
-        updatedAt: new Date(),
-      },
-      create: {
-        tripId: id,
-        itemId: itemId,
-        checked: checked,
-      },
-    });
+    if (persons.some((person) => person >= trip.groupSize)) {
+      return NextResponse.json({ success: false, error: 'Invalid progress update' }, { status: 400 });
+    }
+
+    const progress = await prisma.$transaction(
+      persons.map((person) =>
+        prisma.packingProgress.upsert({
+          where: {
+            tripId_itemId_person: { tripId: id, itemId, person },
+          },
+          update: {
+            checked,
+            updatedAt: new Date(),
+          },
+          create: {
+            tripId: id,
+            itemId,
+            person,
+            checked,
+          },
+        }),
+      ),
+    );
 
     return NextResponse.json({
       success: true,
