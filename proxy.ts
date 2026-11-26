@@ -1,6 +1,7 @@
 import { clerkMiddleware } from '@clerk/nextjs/server';
 
-// API routes check auth themselves; the middleware only makes auth() available to them.
+// API routes check auth themselves; the proxy (Next 16's name for middleware) only makes auth()
+// available to them.
 export default clerkMiddleware();
 
 export const config = {
