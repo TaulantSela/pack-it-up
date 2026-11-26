@@ -158,3 +158,8 @@ Other scripts: `npm run build`, `npm start`, `npm run lint`.
 - Visa and entry advice is a reminder, not a rule: requirements depend on
   your passport, and the list tells you to confirm with official sources.
 - Weather comes from Open-Meteo, which is free for non-commercial use.
+- The functions run in Washington (`iad1`) and the database in Frankfurt, so
+  every query crosses the Atlantic (~90 ms). Don't move the functions to an EU
+  region: Gemini's free tier isn't offered in the EEA, Switzerland or the UK,
+  and Google judges location by the caller's IP. The API keeps round trips down
+  instead (joined reads via Prisma's `relationJoins`, one statement per tick).

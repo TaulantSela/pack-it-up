@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { progressUpdateSchema } from '@/lib/validation';
 import { auth } from '@clerk/nextjs/server';
+import type { PackingProgress } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -21,47 +22,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { itemId, checked } = parsed.data;
     const persons = [...new Set(parsed.data.persons)];
 
-    // Verify trip ownership and that the item belongs to the trip
-    const trip = await prisma.trip.findFirst({
-      where: {
-        id,
-        userId: userId,
-      },
-      include: {
-        items: {
-          where: { id: itemId },
-          select: { id: true },
-        },
-      },
+    // Verify the item belongs to one of this user's trips
+    const item = await prisma.packingItem.findFirst({
+      where: { id: itemId, tripId: id, trip: { userId } },
+      select: { trip: { select: { groupSize: true } } },
     });
 
-    if (!trip || trip.items.length === 0) {
+    if (!item) {
       return NextResponse.json({ success: false, error: 'Item not found' }, { status: 404 });
     }
 
-    if (persons.some((person) => person >= trip.groupSize)) {
+    if (persons.some((person) => person >= item.trip.groupSize)) {
       return NextResponse.json({ success: false, error: 'Invalid progress update' }, { status: 400 });
     }
 
-    const progress = await prisma.$transaction(
-      persons.map((person) =>
-        prisma.packingProgress.upsert({
-          where: {
-            tripId_itemId_person: { tripId: id, itemId, person },
-          },
-          update: {
-            checked,
-            updatedAt: new Date(),
-          },
-          create: {
-            tripId: id,
-            itemId,
-            person,
-            checked,
-          },
-        }),
-      ),
-    );
+    // One statement for every person: each query crosses the Atlantic, and a transaction of upserts
+    // took a round trip per person plus two. Timestamps are UTC, as Prisma writes them
+    const progress = await prisma.$queryRaw<PackingProgress[]>`
+      INSERT INTO "PackingProgress" ("id", "tripId", "itemId", "person", "checked", "createdAt", "updatedAt")
+      SELECT gen_random_uuid()::text, ${id}, ${itemId}, person, ${checked}, now() AT TIME ZONE 'UTC', now() AT TIME ZONE 'UTC'
+      FROM unnest(${persons}::int[]) AS person
+      ON CONFLICT ("tripId", "itemId", "person")
+      DO UPDATE SET "checked" = EXCLUDED."checked", "updatedAt" = EXCLUDED."updatedAt"
+      RETURNING *`;
 
     return NextResponse.json({
       success: true,
@@ -83,25 +66,22 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { id } = await params;
 
-    // Verify trip ownership
+    // Verify trip ownership, and load its ticks in the same query
     const trip = await prisma.trip.findFirst({
       where: {
         id,
         userId: userId,
       },
+      select: { progress: true },
     });
 
     if (!trip) {
       return NextResponse.json({ success: false, error: 'Trip not found' }, { status: 404 });
     }
 
-    const progress = await prisma.packingProgress.findMany({
-      where: { tripId: id },
-    });
-
     return NextResponse.json({
       success: true,
-      progress,
+      progress: trip.progress,
     });
   } catch (error) {
     console.error('Error fetching progress:', error);
