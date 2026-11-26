@@ -6,6 +6,9 @@
 
 generator client {
   provider = "prisma-client-js"
+  // The functions run in Washington (iad1) and the database in Frankfurt, so every round trip costs
+  // ~90 ms: this loads a record and its included relations in one query instead of one per relation
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {

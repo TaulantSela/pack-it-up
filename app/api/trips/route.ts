@@ -7,6 +7,7 @@ import { buildTripContext, tripContextFromSaved } from '@/lib/trip-context';
 import { pluralize } from '@/lib/utils';
 import { guestTripMigrationSchema, tripDetailsSchema } from '@/lib/validation';
 import { auth, currentUser } from '@clerk/nextjs/server';
+import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -14,6 +15,19 @@ const HISTORY_LIMIT = 50;
 const HOUR_MS = 60 * 60 * 1000;
 const GUEST_LISTS_PER_HOUR = 10;
 const USER_LISTS_PER_HOUR = 20;
+
+// The email is only stored when the account's row is created, so Clerk is asked just once
+async function createUserRow(userId: string) {
+  const clerkUser = await currentUser();
+  const primaryEmail = clerkUser?.emailAddresses.find((email) => email.id === clerkUser.primaryEmailAddressId);
+  const userEmail = primaryEmail?.emailAddress || clerkUser?.emailAddresses[0]?.emailAddress || null;
+  // upsert, in case two first requests race
+  await prisma.user.upsert({
+    where: { id: userId },
+    update: {},
+    create: { id: userId, email: userEmail },
+  });
+}
 
 const rateLimitedResponse = () =>
   NextResponse.json(
@@ -106,25 +120,6 @@ export async function POST(request: NextRequest) {
     };
 
     if (userId) {
-      // The email is only stored when the account's row is created, so Clerk is asked just once
-      try {
-        const existingUser = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
-        if (!existingUser) {
-          const clerkUser = await currentUser();
-          const primaryEmail = clerkUser?.emailAddresses.find((email) => email.id === clerkUser.primaryEmailAddressId);
-          const userEmail = primaryEmail?.emailAddress || clerkUser?.emailAddresses[0]?.emailAddress || null;
-          // upsert, in case two first requests race
-          await prisma.user.upsert({
-            where: { id: userId },
-            update: {},
-            create: { id: userId, email: userEmail },
-          });
-        }
-      } catch (userError) {
-        console.error('Error creating user:', userError);
-        return NextResponse.json({ success: false, error: 'Failed to create user account' }, { status: 500 });
-      }
-
       // Guest item ids are replaced with new ones, so map the old ids to keep checked items checked
       const newItemIds = new Map(suggestionItems.map((item) => [item.id, randomUUID()]));
       const progressToCreate = [
@@ -138,28 +133,47 @@ export async function POST(request: NextRequest) {
         ).values(),
       ];
 
-      const trip = await prisma.trip.create({
-        data: {
-          ...tripData,
-          userId: userId,
-          items: {
-            create: suggestionItems.map((item) => ({
-              id: newItemIds.get(item.id),
-              name: item.name,
-              category: item.category,
-              essential: item.essential,
-              quantity: item.quantity,
-              notes: item.notes ?? null,
-              aiSuggested: item.aiSuggested ?? false,
-            })),
+      const createTrip = () =>
+        prisma.trip.create({
+          data: {
+            ...tripData,
+            userId: userId,
+            items: {
+              create: suggestionItems.map((item) => ({
+                id: newItemIds.get(item.id),
+                name: item.name,
+                category: item.category,
+                essential: item.essential,
+                quantity: item.quantity,
+                notes: item.notes ?? null,
+                aiSuggested: item.aiSuggested ?? false,
+              })),
+            },
+            progress: progressToCreate.length ? { create: progressToCreate } : undefined,
           },
-          progress: progressToCreate.length ? { create: progressToCreate } : undefined,
-        },
-        include: {
-          items: true,
-          progress: true,
-        },
-      });
+          include: {
+            items: true,
+            progress: true,
+          },
+        });
+
+      // The account's row isn't looked up first, since every query crosses the Atlantic: the create
+      // fails on the foreign key only for an account's first list, before its row exists
+      let trip;
+      try {
+        trip = await createTrip();
+      } catch (error) {
+        if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003')) {
+          throw error;
+        }
+        try {
+          await createUserRow(userId);
+        } catch (userError) {
+          console.error('Error creating user:', userError);
+          return NextResponse.json({ success: false, error: 'Failed to create user account' }, { status: 500 });
+        }
+        trip = await createTrip();
+      }
 
       return NextResponse.json({
         success: true,

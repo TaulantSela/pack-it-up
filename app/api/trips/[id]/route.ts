@@ -46,21 +46,17 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     const { id } = await params;
 
-    // Verify ownership before deleting
-    const trip = await prisma.trip.findFirst({
+    // Only deletes the trip if it's this user's; its items and ticks go with it (onDelete: Cascade)
+    const { count } = await prisma.trip.deleteMany({
       where: {
         id,
         userId: userId,
       },
     });
 
-    if (!trip) {
+    if (count === 0) {
       return NextResponse.json({ success: false, error: 'Trip not found' }, { status: 404 });
     }
-
-    await prisma.trip.delete({
-      where: { id },
-    });
 
     return NextResponse.json({
       success: true,
