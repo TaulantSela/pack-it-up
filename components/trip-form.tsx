@@ -77,6 +77,8 @@ export default function TripForm({ onSubmit, isLoading, isGuest = false, disable
       } catch {
         // Plain text from an older visit
       }
+      // localStorage only exists in the browser, so the saved city can only arrive after mount
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData((prev) => (prev.origin ? prev : { ...prev, origin, originPlace }));
     } catch {
       // Storage can be unavailable in private windows

@@ -149,14 +149,12 @@ export default function PackingList({
     }
   }, [tripId, isGuest]);
 
-  useEffect(() => {
-    if (!isGuest) return;
-    const keys = initialTicks ?? [];
-    if (keys.length === ticks.size && keys.every((key) => ticks.has(key))) {
-      return;
-    }
-    setTicks(new Set(keys));
-  }, [initialTicks, isGuest, ticks]);
+  // A guest's ticks live in the parent's session copy: mirror them, adjusting state during render
+  // (it converges, since after this update they match) instead of an extra effect pass
+  const guestKeys = initialTicks ?? [];
+  if (isGuest && !(guestKeys.length === ticks.size && guestKeys.every((key) => ticks.has(key)))) {
+    setTicks(new Set(guestKeys));
+  }
 
   // The travelers who tick an item: everyone for personal items on group trips, else one tick
   const personsFor = (item: PackingItem) => (perPerson && !isSharedItem(item.notes) ? everyone : [0]);
@@ -221,10 +219,12 @@ export default function PackingList({
     if (person !== undefined) setItemTicks(item.id, [person], delta > 0);
   };
 
-  // Update allItems when items prop changes
-  useEffect(() => {
+  // Reset allItems when the items prop changes (React's "adjust state when a prop changes" pattern)
+  const [prevItems, setPrevItems] = useState(items);
+  if (items !== prevItems) {
+    setPrevItems(items);
     setAllItems(items);
-  }, [items]);
+  }
 
   const filteredItems = showOnlyEssential ? allItems.filter((item) => item.essential) : allItems;
 

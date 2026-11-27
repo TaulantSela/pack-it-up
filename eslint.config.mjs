@@ -8,10 +8,8 @@ const eslintConfig = defineConfig([
   {
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
-      // New in eslint-config-next 16 (React Hooks 7). It flags seven deliberate patterns here:
-      // restoring the guest trip and form after mount, syncing props into state, the mounted guard
-      // and resetting place suggestions. Kept visible as warnings until they're refactored.
-      'react-hooks/set-state-in-effect': 'warn',
+      // Destructuring a prop only to keep it out of `...rest` isn't an unused variable
+      '@typescript-eslint/no-unused-vars': ['warn', { ignoreRestSiblings: true }],
     },
   },
   // eslint-config-next's default ignores, spelled out because globalIgnores replaces them
