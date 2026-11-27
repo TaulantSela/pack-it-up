@@ -35,18 +35,22 @@ export default function PlaceInput({ icon, label, value, onChange, placeholder, 
   const [activeIndex, setActiveIndex] = useState(-1);
   const Icon = icon?.name;
 
-  useEffect(() => {
-    // Drop suggestions for the previous text, so Enter can't pick a stale one
+  // Every new query drops the previous text's suggestions (so Enter can't pick a stale one) in the
+  // same event, and shows the spinner when a search will run
+  const changeQuery = (text: string) => {
+    setQuery(text);
     setResults([]);
     setActiveIndex(-1);
+    setIsSearching(text.trim().length >= 2);
+  };
 
+  // Searches once typing pauses; the cleanup aborts a search the next keystroke made stale
+  useEffect(() => {
     if (query.trim().length < 2) {
-      setIsSearching(false);
       return;
     }
 
     const controller = new AbortController();
-    setIsSearching(true);
     const timer = setTimeout(async () => {
       try {
         const places = await searchPlaces(query, controller.signal);
@@ -68,8 +72,7 @@ export default function PlaceInput({ icon, label, value, onChange, placeholder, 
 
   const selectPlace = (place: Place) => {
     onChange(place.label, place);
-    setQuery('');
-    setResults([]);
+    changeQuery('');
     setIsOpen(false);
   };
 
@@ -119,7 +122,7 @@ export default function PlaceInput({ icon, label, value, onChange, placeholder, 
           onChange={(event) => {
             // Typing replaces any place picked earlier
             onChange(event.target.value, undefined);
-            setQuery(event.target.value);
+            changeQuery(event.target.value);
             setIsOpen(true);
           }}
           onFocus={() => setIsOpen(results.length > 0)}

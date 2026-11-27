@@ -13,7 +13,7 @@ import { pluralize } from '@/lib/utils';
 import { describeWeather } from '@/lib/weather';
 import { SignInButton, SignUpButton, UserButton, useUser } from '@clerk/nextjs';
 import { Calendar, CloudSun, History, Info, Loader2, Luggage, MapPin, Sparkles, Users, X } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 interface Trip {
   id: string;
@@ -197,11 +197,11 @@ export default function Home() {
     });
   };
 
-  useEffect(() => {
-    if (isSignedIn) {
-      setAuthPromptVisible(false);
-    }
-  }, [isSignedIn]);
+  // Signing in answers the sign-in prompt: hide it in the same render, React's pattern for
+  // adjusting state when something changes (no effect, so no frame with the prompt still showing)
+  if (isSignedIn && authPromptVisible) {
+    setAuthPromptVisible(false);
+  }
 
   // Layout effects run before the browser paints, so a restored or migrating list never shows the
   // empty form for a frame in between
@@ -212,6 +212,9 @@ export default function Home() {
     const saved = loadGuestTripSession();
     if (saved) {
       const normalizedTrip = { ...saved.trip, progress: saved.trip.progress ?? [] };
+      // sessionStorage only exists in the browser and Clerk decides guest vs account, so this
+      // can only run after mount; a layout effect keeps it before the first paint
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentTrip(normalizedTrip as Trip);
       setGuestTripDetails(saved.tripDetails);
       setAuthPromptVisible(true);
